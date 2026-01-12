@@ -53,6 +53,22 @@ with left:
                 st.rerun()
 
     theme["palette"] = st.session_state.palette_work
+from pathlib import Path
+
+st.markdown("### 🖼️ رفع اللوقو (محفوظ)")
+
+logo_upload = st.file_uploader("ارفع لوقو جديد (PNG/JPG)", type=["png", "jpg", "jpeg"])
+if logo_upload is not None:
+    # نحفظه كملف ثابت
+    Path("data").mkdir(parents=True, exist_ok=True)
+    save_path = Path(logo.get("file_path", "data/logo.png"))
+
+    # لو الرفع jpg نخليه png؟ (اختياري) — هنا نحفظه كما هو:
+    with open(save_path, "wb") as f:
+        f.write(logo_upload.getbuffer())
+
+    st.success("✅ تم حفظ اللوقو بنجاح!")
+    st.image(str(save_path), width=200)
 
 with right:
     st.subheader("إعدادات اللوقو")
