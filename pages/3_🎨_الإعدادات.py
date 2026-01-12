@@ -1,4 +1,6 @@
 import streamlit as st
+from utils.layout import render_header
+render_header("🎨 إعدادات الواجهة (Admin)")
 from utils.auth import require_admin
 from utils.settings import load_settings, save_settings
 
