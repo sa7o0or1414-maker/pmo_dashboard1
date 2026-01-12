@@ -2,8 +2,11 @@ import os
 import pandas as pd
 import streamlit as st
 import plotly.express as px
-
 from utils.layout import sidebar_menu, page_title
+
+sidebar_menu(active="home")
+page_title("📊 لوحة المعلومات")
+
 from utils.analytics import analyze
 
 # --------------------------------------------------
