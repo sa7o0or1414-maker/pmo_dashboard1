@@ -69,15 +69,22 @@ if logo_upload is not None:
     # لو الرفع jpg نخليه png؟ (اختياري) — هنا نحفظه كما هو:
     with open(save_path, "wb") as f:
         f.write(logo_upload.getbuffer())
+st.markdown("---")
 
-    st.success("✅ تم حفظ اللوقو بنجاح!")
-    st.image(str(save_path), width=200)
-if st.button("🗑️ حذف اللوقو المحفوظ"):
-    p = Path(logo.get("file_path", "data/logo.png"))
-    if p.exists():
-        p.unlink()
-        st.success("تم حذف اللوقو.")
-        st.rerun()
+if st.button("💾 حفظ الإعدادات"):
+    settings["theme"] = theme
+    settings["logo"] = logo
+    settings["texts"] = texts
+    save_settings(settings)
+st.success("تم حفظ الإعدادات ✅")
+st.rerun()
+
+if st.button("↩️ استرجاع الإعدادات الافتراضية"):
+    from utils.settings import DEFAULT_SETTINGS
+    save_settings(DEFAULT_SETTINGS)
+    st.success("تم استرجاع الإعدادات الافتراضية ✅")
+    st.rerun()
+
     else:
         st.info("لا يوجد لوقو محفوظ.")
 with right:
