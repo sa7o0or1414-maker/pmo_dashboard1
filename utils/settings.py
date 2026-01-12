@@ -4,7 +4,7 @@ from pathlib import Path
 SETTINGS_PATH = Path("data") / "ui_settings.json"
 
 DEFAULT_SETTINGS = {
-    "lang": "ar",  # ar | en
+    "lang": "ar",  # default language (admin sets default)
     "theme": {
         "primary": "#3B82F6",
         "bg": "#0B1220",
@@ -24,8 +24,17 @@ DEFAULT_SETTINGS = {
         "bottom_margin": 10,
         "file_path": "data/logo.png"
     },
+    "layout": {
+        "title_align": "right",      # left | center | right (applies to page titles)
+        "title_size_px": 22
+    },
+    "data": {
+        # أسماء الأعمدة المتوقعة للخريطة
+        "lat_col": "lat",
+        "lon_col": "lon",
+        "map_link_col": "رابط الموقع"  # لو ما عندك lat/lon واستخدمتي رابط
+    },
     "texts": {
-        # عناوين قابلة للتعديل باللغتين
         "dashboard_title_ar": "📊 داشبورد المشاريع",
         "dashboard_title_en": "📊 Projects Dashboard",
         "upload_title_ar": "📤 رفع البيانات الأسبوعي",
@@ -35,26 +44,25 @@ DEFAULT_SETTINGS = {
     }
 }
 
+def _deep_merge(defaults: dict, incoming: dict) -> dict:
+    out = defaults.copy()
+    for k, v in incoming.items():
+        if isinstance(v, dict) and isinstance(out.get(k), dict):
+            out[k] = _deep_merge(out[k], v)
+        else:
+            out[k] = v
+    return out
+
 def load_settings() -> dict:
     SETTINGS_PATH.parent.mkdir(parents=True, exist_ok=True)
     if SETTINGS_PATH.exists():
         try:
             data = json.loads(SETTINGS_PATH.read_text(encoding="utf-8"))
-            # دمج مع الافتراضي لضمان مفاتيح جديدة
-            merged = DEFAULT_SETTINGS.copy()
-            merged.update(data)
-
-            merged["theme"] = {**DEFAULT_SETTINGS["theme"], **data.get("theme", {})}
-            merged["logo"] = {**DEFAULT_SETTINGS["logo"], **data.get("logo", {})}
-            merged["texts"] = {**DEFAULT_SETTINGS["texts"], **data.get("texts", {})}
-            return merged
+            return _deep_merge(DEFAULT_SETTINGS, data)
         except Exception:
             return DEFAULT_SETTINGS
     return DEFAULT_SETTINGS
 
 def save_settings(settings: dict) -> None:
     SETTINGS_PATH.parent.mkdir(parents=True, exist_ok=True)
-    SETTINGS_PATH.write_text(
-        json.dumps(settings, ensure_ascii=False, indent=2),
-        encoding="utf-8"
-    )
+    SETTINGS_PATH.write_text(json.dumps(settings, ensure_ascii=False, indent=2), encoding="utf-8")
