@@ -1,50 +1,41 @@
 import streamlit as st
+from pathlib import Path
+
+from utils.settings import load_settings
 from utils.style import apply_theme
 
 st.set_page_config(page_title="PMO Portal", layout="wide")
 
-# حفظ الإعدادات في الجلسة
-if "theme" not in st.session_state:
-    st.session_state.theme = {
-        "primary": "#3B82F6",
-        "bg": "#0B1220",
-        "card_bg": "#111B2E",
-        "text": "#E5E7EB",
-        "logo_width": 160,
-        "radius": 18,
-    }
+settings = load_settings()
+theme = settings["theme"]
+logo = settings["logo"]
 
-st.sidebar.title("🎨 تخصيص الواجهة")
+apply_theme(theme, logo)
 
-st.session_state.theme["primary"] = st.sidebar.color_picker("لون أساسي", st.session_state.theme["primary"])
-st.session_state.theme["bg"] = st.sidebar.color_picker("لون الخلفية", st.session_state.theme["bg"])
-st.session_state.theme["card_bg"] = st.sidebar.color_picker("لون الكروت/الصناديق", st.session_state.theme["card_bg"])
-st.session_state.theme["text"] = st.sidebar.color_picker("لون النص", st.session_state.theme["text"])
+uploaded_logo = st.sidebar.file_uploader("رفع لوقو (للعرض المؤقت)", type=["png","jpg","jpeg"])
 
-st.session_state.theme["logo_width"] = st.sidebar.slider("حجم اللوقو", 60, 320, st.session_state.theme["logo_width"])
-st.session_state.theme["radius"] = st.sidebar.slider("انحناء الزوايا", 8, 28, st.session_state.theme["radius"])
+def render_logo():
+    if not logo.get("enabled", True):
+        return
 
-uploaded_logo = st.sidebar.file_uploader("ارفع لوقو (اختياري)", type=["png", "jpg", "jpeg"])
+    st.markdown("<div class='pmo-logo-wrap'>", unsafe_allow_html=True)
 
-# تطبيق الثيم
-apply_theme(
-    primary=st.session_state.theme["primary"],
-    bg=st.session_state.theme["bg"],
-    card_bg=st.session_state.theme["card_bg"],
-    text=st.session_state.theme["text"],
-    logo_width=st.session_state.theme["logo_width"],
-    radius=st.session_state.theme["radius"],
-)
+    if uploaded_logo:
+        st.image(uploaded_logo, width=int(logo.get("width", 160)))
+    else:
+        # لوقو ثابت من الريبو (اختياري)
+        path = Path("assets") / "logo.png"
+        if path.exists():
+            st.image(str(path), width=int(logo.get("width", 160)))
 
-# عرض اللوقو (من رفع المستخدم أو افتراضي)
-if uploaded_logo:
-    st.markdown('<div class="pmo-logo">', unsafe_allow_html=True)
-    st.image(uploaded_logo)
     st.markdown("</div>", unsafe_allow_html=True)
+
+# مكان اللوقو
+if logo.get("location", "header") == "sidebar":
+    with st.sidebar:
+        render_logo()
 else:
-    # لو عندك ملف ثابت داخل الريبو
-    # st.image("assets/logo.png", width=st.session_state.theme["logo_width"])
-    st.markdown("")
+    render_logo()
 
 st.markdown(
     """
@@ -53,4 +44,5 @@ st.markdown(
     """,
     unsafe_allow_html=True
 )
-st.info("من القائمة الجانبية: رفع البيانات → الداشبورد")
+
+st.info("من القائمة الجانبية: رفع البيانات → الداشبورد → الإعدادات (للأدمن فقط)")
