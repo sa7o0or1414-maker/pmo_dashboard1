@@ -6,7 +6,6 @@ from utils.layout import render_header
 from utils.settings import load_settings, save_settings, DEFAULT_SETTINGS
 
 st.set_page_config(page_title="الإعدادات", layout="wide")
-
 render_header(title_key_base="settings_title", page_title_fallback="🎨 إعدادات الواجهة (Admin)")
 require_admin()
 
@@ -23,16 +22,16 @@ left, right = st.columns([1, 1])
 with left:
     st.subheader("🌐 اللغة الافتراضية + الخط")
     lang_default = st.selectbox("اللغة الافتراضية للموقع (للجميع)", ["ar", "en"], index=0 if lang_default == "ar" else 1)
-
     theme["font_ar"] = st.text_input("خط عربي (CSS name)", value=theme.get("font_ar", "Montserrat Arabic"))
     theme["font_en"] = st.text_input("خط إنجليزي (CSS name)", value=theme.get("font_en", "Montserrat"))
 
     st.divider()
 
-    st.subheader("📌 محاذاة العناوين")
+    st.subheader("📌 محاذاة العناوين + مسافة الكروت")
     layout["title_align"] = st.selectbox("محاذاة عنوان الصفحة", ["right", "center", "left"],
                                          index=["right", "center", "left"].index(layout.get("title_align", "right")))
     layout["title_size_px"] = st.slider("حجم عنوان الصفحة (px)", 16, 34, int(layout.get("title_size_px", 22)))
+    layout["cards_gap_px"] = st.slider("المسافة بين الكروت (px) ≈ 1 سم = 38", 10, 60, int(layout.get("cards_gap_px", 38)))
 
     st.divider()
 
@@ -50,7 +49,6 @@ with left:
 
     new_color = st.color_picker("أضيفي لون", "#22C55E", key="new_palette_color")
     c_add, c_clear, c_count = st.columns([1, 1, 2])
-
     with c_add:
         if st.button("➕ إضافة"):
             st.session_state.palette_work.append(new_color)
@@ -106,15 +104,17 @@ with right:
     st.divider()
 
     logo["enabled"] = st.toggle("إظهار اللوقو", value=bool(logo.get("enabled", True)))
-    logo["location"] = st.selectbox("مكان اللوقو", ["header", "sidebar"], index=0 if logo.get("location", "header") == "header" else 1)
-    logo["align"] = st.selectbox("محاذاة اللوقو", ["left", "center", "right"], index=["left","center","right"].index(logo.get("align", "left")))
+    logo["align"] = st.selectbox("محاذاة اللوقو", ["left", "center", "right"], index=["left","center","right"].index(logo.get("align", "center")))
     logo["width"] = st.slider("عرض اللوقو (px)", 60, 360, int(logo.get("width", 160)))
     logo["top_margin"] = st.slider("مسافة فوق اللوقو", 0, 40, int(logo.get("top_margin", 6)))
     logo["bottom_margin"] = st.slider("مسافة تحت اللوقو", 0, 40, int(logo.get("bottom_margin", 10)))
 
     st.divider()
 
-    st.subheader("🗺️ إعدادات الخريطة (أسماء الأعمدة في Excel)")
+    st.subheader("🗺️ الخريطة")
+    data_cfg["show_map"] = st.toggle("إظهار الخريطة في الداشبورد", value=bool(data_cfg.get("show_map", True)))
+
+    st.caption("أسماء الأعمدة في Excel")
     data_cfg["lat_col"] = st.text_input("اسم عمود Latitude", value=data_cfg.get("lat_col", "lat"))
     data_cfg["lon_col"] = st.text_input("اسم عمود Longitude", value=data_cfg.get("lon_col", "lon"))
     data_cfg["map_link_col"] = st.text_input("اسم عمود رابط الموقع (اختياري)", value=data_cfg.get("map_link_col", "رابط الموقع"))
