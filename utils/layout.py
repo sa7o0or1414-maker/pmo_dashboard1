@@ -26,7 +26,7 @@ def sidebar_menu(active: str):
         if st.sidebar.button(label, use_container_width=True, disabled=is_active):
             st.switch_page(path)
 
-    go("📊 الداشبورد", "pages/1_🏠_الداشبورد.py", active == "dashboard")
+    go("🏠 الصفحة الرئيسية", "pages/1_🏠_الصفحة_الرئيسية.py", active == "dashboard")
     go("📤 رفع البيانات", "pages/2_📤_رفع_البيانات.py", active == "upload")
     go("🎨 الإعدادات", "pages/3_🎨_الإعدادات.py", active == "settings")
     go("🔐 تسجيل الدخول", "pages/4_🔐_تسجيل_الدخول.py", active == "login")
