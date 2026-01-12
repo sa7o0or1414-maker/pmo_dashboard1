@@ -1,6 +1,8 @@
 import os
 import pandas as pd
 import streamlit as st
+from utils.layout import render_header
+render_header("📤 رفع البيانات الأسبوعي")
 from utils.schema import REQUIRED_COLUMNS
 
 st.set_page_config(page_title="رفع البيانات", layout="wide")
