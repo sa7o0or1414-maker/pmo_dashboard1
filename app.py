@@ -14,42 +14,95 @@ from utils.settings import load_settings
 # --------------------------------------------------
 st.set_page_config(page_title="الصفحة الرئيسية", page_icon="🏠", layout="wide")
 
-# ✅ نخفي قائمة الصفحات الافتراضية (اللي يظهر فوقها App)
+# ✅ نخفي قائمة الصفحات الافتراضية (اللي يطلع فيها App)
 st.markdown(
     """
     <style>
-    /* Hide default pages navigation (and "App" header) */
-    div[data-testid="stSidebarNav"] { display: none !important; }
+      div[data-testid="stSidebarNav"] { display: none !important; }
     </style>
     """,
     unsafe_allow_html=True,
 )
 
 # --------------------------------------------------
-# سايدبار مخصص (يمين) بالترتيب المطلوب
+# اكتشاف صفحات مجلد pages تلقائيًا (بدون ما نعرف اسم الملف)
+# --------------------------------------------------
+def list_pages():
+    pages_dir = "pages"
+    if not os.path.isdir(pages_dir):
+        return []
+    files = []
+    for f in os.listdir(pages_dir):
+        if f.endswith(".py") and not f.startswith("_"):
+            files.append(f)
+    return sorted(files)
+
+def find_page_by_keywords(keywords):
+    """
+    يبحث داخل أسماء ملفات pages عن أي ملف يحتوي كل الكلمات المطلوبة.
+    """
+    pages = list_pages()
+    for f in pages:
+        name = f.lower()
+        ok = True
+        for kw in keywords:
+            if kw.lower() not in name:
+                ok = False
+                break
+        if ok:
+            return f"pages/{f}"
+    return None
+
+# نحاول نلقط الصفحات (رفع/إعدادات/تسجيل) مهما كان رقمها أو الإيموجي
+upload_page = find_page_by_keywords(["رفع"]) or find_page_by_keywords(["upload"])
+settings_page = find_page_by_keywords(["الإعدادات"]) or find_page_by_keywords(["اعدادات"]) or find_page_by_keywords(["settings"])
+login_page = find_page_by_keywords(["تسجيل"]) or find_page_by_keywords(["login"])
+
+# --------------------------------------------------
+# سايدبار مخصص بالترتيب المطلوب
 # --------------------------------------------------
 st.sidebar.markdown(
     """
-    <div style="text-align:center; font-size:20px; font-weight:700; margin-top:6px; margin-bottom:10px;">
+    <div style="text-align:center; font-size:20px; font-weight:800; margin-top:8px;">
         🏠 الصفحة الرئيسية
     </div>
-    <div style="text-align:center; font-size:14px; opacity:0.85; margin-bottom:18px;">
+    <div style="text-align:center; font-size:14px; opacity:0.9; margin-bottom:14px;">
         لوحة المعلومات
     </div>
+    <hr style="margin: 10px 0 14px 0; opacity:0.3;">
     """,
     unsafe_allow_html=True,
 )
 
-# روابط الصفحات (بهذا الترتيب)
-# الصفحة الرئيسية = الداشبورد الحالي (بدون رابط)
-st.sidebar.markdown("—")
+# أزرار تنقلك للصفحات (ترتيبك: رفع -> إعدادات -> تسجيل)
+if st.sidebar.button("📤 رفع البيانات", use_container_width=True):
+    if upload_page:
+        st.switch_page(upload_page)
+    else:
+        st.sidebar.error("لم أجد صفحة (رفع البيانات) داخل مجلد pages.")
 
-# ✅ مهم: هذه الروابط تنقلك لصفحات pages
-st.sidebar.page_link("pages/4_📤_رفع_البيانات.py", label="📤 رفع البيانات")
-st.sidebar.page_link("pages/3_🎨_الإعدادات.py", label="🎨 الإعدادات")
-st.sidebar.page_link("pages/1_🔐_تسجيل_الدخول.py", label="🔐 تسجيل الدخول")
+if st.sidebar.button("🎨 الإعدادات", use_container_width=True):
+    if settings_page:
+        st.switch_page(settings_page)
+    else:
+        st.sidebar.error("لم أجد صفحة (الإعدادات) داخل مجلد pages.")
 
-st.sidebar.markdown("—")
+if st.sidebar.button("🔐 تسجيل الدخول", use_container_width=True):
+    if login_page:
+        st.switch_page(login_page)
+    else:
+        st.sidebar.error("لم أجد صفحة (تسجيل الدخول) داخل مجلد pages.")
+
+st.sidebar.markdown("<hr style='margin:14px 0; opacity:0.3;'>", unsafe_allow_html=True)
+
+# (اختياري) لو حبيتي تشوفي أسماء ملفات pages المتوفرة أثناء التجربة:
+with st.sidebar.expander("🧩 صفحات موجودة (للتأكد)", expanded=False):
+    pages_now = list_pages()
+    if pages_now:
+        for p in pages_now:
+            st.write("•", p)
+    else:
+        st.info("لا يوجد مجلد pages أو لا توجد صفحات.")
 
 # --------------------------------------------------
 # هيدر أعلى الصفحة (لوغو + عنوان + لغة حسب نظامك)
@@ -89,23 +142,18 @@ def safe_unique(frame: pd.DataFrame, col: str):
     return sorted([x for x in frame[col].dropna().unique().tolist()])
 
 def parse_latlon_from_link(link: str):
-    """يدعم روابط Google Maps مثل .../@lat,lon أو ?q=lat,lon"""
     if not isinstance(link, str) or not link:
         return None, None
-
     m = re.search(r"@(-?\d+\.\d+),(-?\d+\.\d+)", link)
     if m:
         return float(m.group(1)), float(m.group(2))
-
     m = re.search(r"[?&]q=(-?\d+\.\d+),(-?\d+\.\d+)", link)
     if m:
         return float(m.group(1)), float(m.group(2))
-
     return None, None
 
 def ensure_latlon(frame: pd.DataFrame) -> pd.DataFrame:
     out = frame.copy()
-
     if lat_col in out.columns and lon_col in out.columns:
         out[lat_col] = pd.to_numeric(out[lat_col], errors="coerce")
         out[lon_col] = pd.to_numeric(out[lon_col], errors="coerce")
@@ -147,14 +195,11 @@ def show_dropdown(table_df: pd.DataFrame, title: str):
         return
 
     name_col = "إسم المشـــروع" if "إسم المشـــروع" in table_df.columns else None
-
     with st.expander(title, expanded=True):
         if name_col:
             st.markdown("**أسماء المشاريع:**")
             for n in table_df[name_col].dropna().astype(str).unique().tolist():
                 st.write("•", n)
-        else:
-            st.info("عمود اسم المشروع غير موجود.")
 
         cols_show = [c for c in [
             "رقم العقد",
@@ -169,17 +214,12 @@ def show_dropdown(table_df: pd.DataFrame, title: str):
             "reason",
         ] if c in table_df.columns]
 
-        sort_cols = [c for c in ["is_overdue", "is_forecast_late", "variance_days"] if c in table_df.columns]
-        if sort_cols:
-            table_df = table_df.sort_values(by=sort_cols, ascending=[False] * len(sort_cols))
-
         st.dataframe(table_df[cols_show], use_container_width=True)
 
 # --------------------------------------------------
-# الفلاتر (تحت القائمة المخصصة)
+# فلاتر (تحت القائمة)
 # --------------------------------------------------
 st.sidebar.markdown("### 🔎 تحديد النتائج")
-
 status_opt = ["الكل"] + safe_unique(df, "حالة المشروع")
 mun_opt = ["الكل"] + safe_unique(df, "البلدية")
 entity_opt = ["الكل"] + safe_unique(df, "الجهة")
@@ -208,7 +248,7 @@ k4.metric("متوسط الإنجاز", f"{pd.to_numeric(filtered['نسبة ال�
 st.divider()
 
 # --------------------------------------------------
-# Alerts + Forecast
+# Alerts + Forecast + Reasons
 # --------------------------------------------------
 alerts = filtered.copy()
 today = pd.Timestamp(date.today())
@@ -229,12 +269,7 @@ MAX_PREDICT_DAYS = 20000
 MIN_PROGRESS = 0.5
 MAX_PROGRESS = 100
 
-can_forecast = (
-    ("المدة المنقضية بالايام" in alerts.columns)
-    and ("نسبة الإنجاز" in alerts.columns)
-    and ("تاريخ تسليم الموقع" in alerts.columns)
-)
-
+can_forecast = ("المدة المنقضية بالايام" in alerts.columns) and ("نسبة الإنجاز" in alerts.columns) and ("تاريخ تسليم الموقع" in alerts.columns)
 if can_forecast:
     valid = (
         alerts["المدة المنقضية بالايام"].notna()
@@ -251,8 +286,7 @@ if can_forecast:
 
     valid2 = alerts["predicted_total_days"].notna()
     alerts.loc[valid2, "forecast_end"] = (
-        alerts.loc[valid2, "تاريخ تسليم الموقع"]
-        + pd.to_timedelta(alerts.loc[valid2, "predicted_total_days"], unit="D", errors="coerce")
+        alerts.loc[valid2, "تاريخ تسليم الموقع"] + pd.to_timedelta(alerts.loc[valid2, "predicted_total_days"], unit="D", errors="coerce")
     )
 
 alerts["is_overdue"] = False
@@ -306,14 +340,11 @@ def build_reason(row):
             f"⇒ تاريخ التنبؤ {pd.to_datetime(forecast_end).date()} "
             f"أبعد من المخطط بـ {int(variance)} يوم."
         )
-
     return ""
 
 alerts["reason"] = alerts.apply(build_reason, axis=1)
 
-# --------------------------------------------------
-# زرّين Toggle (ضغطة تظهر/ضغطة تختفي)
-# --------------------------------------------------
+# Toggle (ضغطة تظهر/ضغطة تختفي)
 if "alerts_toggle" not in st.session_state:
     st.session_state.alerts_toggle = None  # None | overdue | forecast
 
@@ -323,58 +354,37 @@ forecast_count = int(alerts["is_forecast_late"].sum())
 col_over, col_fore = st.columns(2)
 
 with col_over:
-    if st.button(f"⛔ متأخر فعليًا • {overdue_count:,}", use_container_width=True, key="btn_overdue"):
+    if st.button(f"⛔ متأخر فعليًا • {overdue_count:,}", use_container_width=True):
         st.session_state.alerts_toggle = None if st.session_state.alerts_toggle == "overdue" else "overdue"
     if st.session_state.alerts_toggle == "overdue":
         show_dropdown(alerts[alerts["is_overdue"]].copy(), "📌 تفاصيل المتأخرة فعليًا")
 
 with col_fore:
-    if st.button(f"⚠️ متوقع يتأخر (Forecast) • {forecast_count:,}", use_container_width=True, key="btn_forecast"):
+    if st.button(f"⚠️ متوقع يتأخر (Forecast) • {forecast_count:,}", use_container_width=True):
         st.session_state.alerts_toggle = None if st.session_state.alerts_toggle == "forecast" else "forecast"
     if st.session_state.alerts_toggle == "forecast":
         show_dropdown(alerts[alerts["is_forecast_late"]].copy(), "📌 تفاصيل المتوقع تأخرها + سبب التنبؤ")
 
 st.divider()
 
-# --------------------------------------------------
 # Charts
-# --------------------------------------------------
 l, r = st.columns(2)
-
-alerts_summary = pd.DataFrame(
-    {
-        "الحالة": ["Overdue", "Forecast Late", "On Track"],
-        "العدد": [
-            int(alerts["is_overdue"].sum()),
-            int(alerts["is_forecast_late"].sum()),
-            int(max(len(alerts) - alerts["is_overdue"].sum(), 0)),
-        ],
-    }
-)
-
-fig_alerts = px.bar(
-    alerts_summary,
-    x="الحالة",
-    y="العدد",
-    title="تنبيهات التأخير",
-    color="الحالة",
-    color_discrete_sequence=palette,
-)
-l.plotly_chart(fig_alerts, use_container_width=True)
+alerts_summary = pd.DataFrame({
+    "الحالة": ["Overdue", "Forecast Late", "On Track"],
+    "العدد": [
+        int(alerts["is_overdue"].sum()),
+        int(alerts["is_forecast_late"].sum()),
+        int(max(len(alerts) - alerts["is_overdue"].sum(), 0)),
+    ],
+})
+l.plotly_chart(px.bar(alerts_summary, x="الحالة", y="العدد", title="تنبيهات التأخير", color="الحالة", color_discrete_sequence=palette), use_container_width=True)
 
 if "تاريخ الانتهاء من المشروع" in alerts.columns:
     tmp = alerts.copy()
     tmp = tmp[tmp["تاريخ الانتهاء من المشروع"].notna() | tmp["forecast_end"].notna()].copy()
     if len(tmp) > 0:
         tmp["project_label"] = tmp["إسم المشـــروع"] if "إسم المشـــروع" in tmp.columns else tmp.index.astype(str)
-        fig_fc = px.scatter(
-            tmp,
-            x="تاريخ الانتهاء من المشروع",
-            y="forecast_end",
-            hover_name="project_label",
-            title="مقارنة المخطط vs التنبؤ (Forecast)",
-        )
-        r.plotly_chart(fig_fc, use_container_width=True)
+        r.plotly_chart(px.scatter(tmp, x="تاريخ الانتهاء من المشروع", y="forecast_end", hover_name="project_label", title="مقارنة المخطط vs التنبؤ (Forecast)"), use_container_width=True)
     else:
         r.info("لا توجد بيانات كافية لعرض التنبؤ.")
 else:
@@ -382,43 +392,17 @@ else:
 
 st.divider()
 
-# --------------------------------------------------
-# Map (اختياري من الإعدادات)
-# --------------------------------------------------
+# Map (اختياري)
 if show_map:
     st.subheader("🗺️ الخريطة (تتغير حسب الفلاتر)")
-
-    geo = ensure_latlon(filtered)
-    geo = geo.dropna(subset=[lat_col, lon_col]).copy()
-
+    geo = ensure_latlon(filtered).dropna(subset=[lat_col, lon_col]).copy()
     if len(geo) == 0:
-        st.info("لا توجد إحداثيات. أضيفي في Excel أعمدة lat/lon أو رابط Google Maps في عمود رابط الموقع.")
+        st.info("لا توجد إحداثيات. أضيفي lat/lon أو رابط موقع في Excel.")
     else:
-        st.map(
-            pd.DataFrame(
-                {"lat": geo[lat_col].astype(float), "lon": geo[lon_col].astype(float)}
-            ),
-            zoom=10,
-        )
+        st.map(pd.DataFrame({"lat": geo[lat_col].astype(float), "lon": geo[lon_col].astype(float)}), zoom=10)
 
-    st.divider()
+st.divider()
 
-# --------------------------------------------------
-# Charts إضافية + جدول
-# --------------------------------------------------
-g1, g2 = st.columns(2)
-
-if "حالة المشروع" in filtered.columns:
-    fig1 = px.histogram(filtered, x="حالة المشروع", title="توزيع المشاريع حسب الحالة", color_discrete_sequence=palette)
-    g1.plotly_chart(fig1, use_container_width=True)
-else:
-    g1.info("لا يوجد عمود 'حالة المشروع'.")
-
-if "البلدية" in filtered.columns:
-    fig2 = px.histogram(filtered, x="البلدية", title="توزيع المشاريع حسب البلدية", color_discrete_sequence=palette)
-    g2.plotly_chart(fig2, use_container_width=True)
-else:
-    g2.info("لا يوجد عمود 'البلدية'.")
-
+# جدول
 st.subheader("📋 جدول المشاريع (بعد الفلترة)")
 st.dataframe(filtered, use_container_width=True)
