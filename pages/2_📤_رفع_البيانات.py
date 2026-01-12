@@ -2,7 +2,6 @@ import streamlit as st
 from pathlib import Path
 
 st.set_page_config(page_title="رفع البيانات", page_icon="📤", layout="wide")
-
 st.title("📤 رفع البيانات")
 
 if not st.session_state.get("logged_in", False):
@@ -17,7 +16,6 @@ if not st.session_state.get("logged_in", False):
     st.stop()
 
 uploaded = st.file_uploader("ارفع ملف Excel", type=["xlsx"])
-
 if uploaded:
     Path("data").mkdir(exist_ok=True)
     with open("data/latest.xlsx", "wb") as f:
