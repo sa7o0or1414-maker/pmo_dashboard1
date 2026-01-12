@@ -3,22 +3,28 @@ from pathlib import Path
 
 import streamlit as st
 
-from utils.layout import render_sidebar_menu, render_header
+from utils.layout import render_sidebar_menu, render_page_title
 from utils.auth import require_admin
+
 
 st.set_page_config(page_title="رفع البيانات", page_icon="📤", layout="wide")
 
+# السايدبار الموحد (ويخفي كلمة App)
 render_sidebar_menu(active="upload")
-render_header(page_title_fallback="📤 رفع البيانات")
+render_page_title("📤 رفع البيانات")
 
+# ✅ قفل الصفحة: لا تفتح إلا للمسجلين دخول (أدمن)
 require_admin()
 
-st.subheader("رفع ملف Excel لتحديث الداشبورد")
-uploaded = st.file_uploader("ارفع ملف Excel", type=["xlsx"])
+st.write("ارفعي ملف Excel وسيتم حفظه كـ **data/latest.xlsx** وتحديث الداشبورد مباشرة.")
+
+uploaded = st.file_uploader("رفع ملف Excel", type=["xlsx"])
 
 if uploaded is not None:
     Path("data").mkdir(parents=True, exist_ok=True)
     save_path = os.path.join("data", "latest.xlsx")
+
     with open(save_path, "wb") as f:
         f.write(uploaded.getbuffer())
-    st.success("✅ تم رفع الملف وتحديثه. ارجعي للصفحة الرئيسية لعرض النتائج.")
+
+    st.success("✅ تم رفع الملف بنجاح. ارجعي للصفحة الرئيسية لعرض التحديث.")
