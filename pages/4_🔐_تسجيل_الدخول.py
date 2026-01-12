@@ -1,18 +1,12 @@
 import streamlit as st
-from utils.layout import sidebar_menu, page_title
-from utils.auth import login_form, is_logged_in, logout_button
 
-st.set_page_config(
-    page_title="تسجيل الدخول",
-    page_icon="🔐",
-    layout="wide"
-)
+st.set_page_config(page_title="تسجيل الدخول", page_icon="🔐", layout="wide")
+st.title("🔐 تسجيل الدخول")
 
-sidebar_menu(active="login")
-page_title("🔐 تسجيل الدخول")
-
-if is_logged_in():
-    st.success("أنتِ مسجلة دخول بالفعل ✅")
-    logout_button()
-else:
-    login_form()
+pwd = st.text_input("كلمة المرور", type="password")
+if st.button("تسجيل الدخول"):
+    if pwd == "admin123":
+        st.session_state.logged_in = True
+        st.success("تم تسجيل الدخول")
+    else:
+        st.error("كلمة المرور غير صحيحة")
