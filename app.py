@@ -1,18 +1,4 @@
-import streamlit as st
 from pathlib import Path
-
-from utils.settings import load_settings
-from utils.style import apply_theme
-
-st.set_page_config(page_title="PMO Portal", layout="wide")
-
-settings = load_settings()
-theme = settings["theme"]
-logo = settings["logo"]
-
-apply_theme(theme, logo)
-
-uploaded_logo = st.sidebar.file_uploader("رفع لوقو (للعرض المؤقت)", type=["png","jpg","jpeg"])
 
 def render_logo():
     if not logo.get("enabled", True):
@@ -20,15 +6,22 @@ def render_logo():
 
     st.markdown("<div class='pmo-logo-wrap'>", unsafe_allow_html=True)
 
+    # 1) لو فيه لوقو مرفوع مؤقت من السايدبار (اختياري)
     if uploaded_logo:
         st.image(uploaded_logo, width=int(logo.get("width", 160)))
     else:
-        # لوقو ثابت من الريبو (اختياري)
-        path = Path("assets") / "logo.png"
-        if path.exists():
-            st.image(str(path), width=int(logo.get("width", 160)))
+        # 2) اقرأ اللوقو المحفوظ في data/
+        saved_logo = Path(logo.get("file_path", "data/logo.png"))
+        # 3) أو fallback لوقو ثابت داخل الريبو
+        repo_logo = Path("assets") / "logo.png"
+
+        if saved_logo.exists():
+            st.image(str(saved_logo), width=int(logo.get("width", 160)))
+        elif repo_logo.exists():
+            st.image(str(repo_logo), width=int(logo.get("width", 160)))
 
     st.markdown("</div>", unsafe_allow_html=True)
+
 
 # مكان اللوقو
 if logo.get("location", "header") == "sidebar":
