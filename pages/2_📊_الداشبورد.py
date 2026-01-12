@@ -38,11 +38,7 @@ def safe_unique(frame: pd.DataFrame, col: str):
     return sorted([x for x in frame[col].dropna().unique().tolist()])
 
 def parse_latlon_from_link(link: str):
-    """
-    يدعم روابط Google Maps مثل:
-    - .../@24.7136,46.6753,15z
-    - ...?q=24.7136,46.6753
-    """
+    """يدعم روابط Google Maps مثل .../@lat,lon أو ?q=lat,lon"""
     if not isinstance(link, str) or not link:
         return None, None
 
@@ -78,14 +74,32 @@ def ensure_latlon(frame: pd.DataFrame) -> pd.DataFrame:
     out[lon_col] = pd.NA
     return out
 
-def show_projects_dropdown(table_df: pd.DataFrame, title: str):
-    """يعرض قائمة منسدلة فيها أسماء المشاريع + جدول مختصر."""
-    name_col = "إسم المشـــروع" if "إسم المشـــروع" in table_df.columns else None
+def _fmt_days(x):
+    try:
+        if pd.isna(x):
+            return "—"
+        return f"{int(round(float(x))):,} يوم"
+    except Exception:
+        return "—"
+
+def _fmt_pct(x):
+    try:
+        if pd.isna(x):
+            return "—"
+        return f"{float(x):.1f}%"
+    except Exception:
+        return "—"
+
+def show_projects_dropdown(table_df: pd.DataFrame, title: str, show_reason: bool = True):
+    """منسدلة تلقائيًا تعرض: أسماء المشاريع + جدول مع أسباب (اختياري)."""
     if len(table_df) == 0:
         st.info("لا توجد نتائج.")
         return
 
+    name_col = "إسم المشـــروع" if "إسم المشـــروع" in table_df.columns else None
+
     with st.expander(title, expanded=True):
+        # أسماء المشاريع
         if name_col:
             st.markdown("**أسماء المشاريع:**")
             names = table_df[name_col].dropna().astype(str).unique().tolist()
@@ -94,7 +108,8 @@ def show_projects_dropdown(table_df: pd.DataFrame, title: str):
         else:
             st.info("عمود اسم المشروع غير موجود.")
 
-        cols_show = [c for c in [
+        # جدول
+        base_cols = [
             "رقم العقد",
             "إسم المشـــروع",
             "البلدية",
@@ -102,13 +117,19 @@ def show_projects_dropdown(table_df: pd.DataFrame, title: str):
             "حالة المشروع",
             "نسبة الإنجاز",
             "تاريخ الانتهاء من المشروع",
-            "forecast_end"
-        ] if c in table_df.columns]
+            "forecast_end",
+            "variance_days",
+        ]
+        if show_reason:
+            base_cols.insert(8, "reason")  # سبب التأخر/التنبؤ
 
-        # ترتيب منطقي
-        sort_cols = [c for c in ["is_overdue", "is_forecast_late"] if c in table_df.columns]
+        cols_show = [c for c in base_cols if c in table_df.columns]
+
+        # ترتيب: المتأخر أولًا
+        sort_cols = [c for c in ["is_overdue", "is_forecast_late", "variance_days"] if c in table_df.columns]
         if sort_cols:
-            table_df = table_df.sort_values(by=sort_cols, ascending=False)
+            asc = [False, False, False][: len(sort_cols)]
+            table_df = table_df.sort_values(by=sort_cols, ascending=asc)
 
         st.dataframe(table_df[cols_show], use_container_width=True)
 
@@ -167,7 +188,7 @@ if "المدة المنقضية بالايام" in alerts.columns:
 if "نسبة الإنجاز" in alerts.columns:
     alerts["نسبة الإنجاز"] = pd.to_numeric(alerts["نسبة الإنجاز"], errors="coerce")
 
-# Forecast (محصّن)
+# ---------- Forecast (محصّن) ----------
 alerts["predicted_total_days"] = pd.Series([None] * len(alerts), dtype="float64")
 alerts["forecast_end"] = pd.NaT
 
@@ -193,7 +214,6 @@ if can_forecast:
 
     pred = alerts.loc[valid, "المدة المنقضية بالايام"] / (alerts.loc[valid, "نسبة الإنجاز"] / 100.0)
     pred = pred.where((pred >= 0) & (pred <= MAX_PREDICT_DAYS), other=pd.NA)
-
     alerts.loc[valid, "predicted_total_days"] = pred
 
     valid2 = alerts["predicted_total_days"].notna()
@@ -220,9 +240,57 @@ if "تاريخ الانتهاء من المشروع" in alerts.columns:
         (alerts["forecast_end"] > alerts["تاريخ الانتهاء من المشروع"])
     )
 
-# ---------- Click-to-expand cards (dropdown مباشرة تحتها) ----------
+# ---------- Reasons (سبب التأخر/التنبؤ) ----------
+alerts["variance_days"] = pd.NA  # الفرق بين forecast_end و planned_end
+if "تاريخ الانتهاء من المشروع" in alerts.columns:
+    # variance_days = forecast_end - planned_end
+    alerts["variance_days"] = (alerts["forecast_end"] - alerts["تاريخ الانتهاء من المشروع"]).dt.days
+
+def build_reason(row):
+    # متأخر فعليًا
+    if bool(row.get("is_overdue", False)):
+        planned = row.get("تاريخ الانتهاء من المشروع", pd.NaT)
+        if pd.isna(planned):
+            return "متأخر فعليًا: تاريخ الانتهاء المخطط غير موجود."
+        days = (today - planned).days
+        return f"متأخر فعليًا: تجاوز تاريخ الانتهاء المخطط بـ {days} يوم."
+
+    # متوقع يتأخر (Forecast)
+    if bool(row.get("is_forecast_late", False)):
+        progress = row.get("نسبة الإنجاز", pd.NA)
+        elapsed = row.get("المدة المنقضية بالايام", pd.NA)
+        predicted = row.get("predicted_total_days", pd.NA)
+        forecast_end = row.get("forecast_end", pd.NaT)
+        planned_end = row.get("تاريخ الانتهاء من المشروع", pd.NaT)
+        variance = row.get("variance_days", pd.NA)
+
+        # إذا بيانات ناقصة
+        missing = []
+        if pd.isna(progress): missing.append("نسبة الإنجاز")
+        if pd.isna(elapsed): missing.append("المدة المنقضية")
+        if pd.isna(predicted): missing.append("أيام متوقعة إجمالًا")
+        if pd.isna(forecast_end): missing.append("تاريخ التنبؤ")
+        if pd.isna(planned_end): missing.append("تاريخ الانتهاء المخطط")
+
+        if missing:
+            return "متوقع يتأخر: بيانات غير كافية (" + "، ".join(missing) + ")."
+
+        # رسالة تفسير التنبؤ
+        return (
+            f"التنبؤ: المدة المنقضية {_fmt_days(elapsed)} مع إنجاز {_fmt_pct(progress)} "
+            f"⇒ الأيام المتوقعة إجمالًا {_fmt_days(predicted)} "
+            f"⇒ تاريخ التنبؤ {pd.to_datetime(forecast_end).date()} "
+            f"أبعد من المخطط بـ {int(variance)} يوم."
+        )
+
+    # لا شيء
+    return ""
+
+alerts["reason"] = alerts.apply(build_reason, axis=1)
+
+# ---------- Click-to-expand cards (منسدلة تحتها) ----------
 if "alerts_view" not in st.session_state:
-    st.session_state.alerts_view = None  # None | overdue | forecast
+    st.session_state.alerts_view = None  # None | overdue | forecast | all
 
 overdue_count = int(alerts["is_overdue"].sum())
 forecast_count = int(alerts["is_forecast_late"].sum())
@@ -234,30 +302,26 @@ with col_over:
         st.session_state.alerts_view = "overdue"
 
     if st.session_state.alerts_view == "overdue":
-        show_projects_dropdown(
-            alerts[alerts["is_overdue"]].copy(),
-            "📌 تفاصيل المشاريع المتأخرة فعليًا"
-        )
+        df_over = alerts[alerts["is_overdue"]].copy()
+        # للمتأخر فعليًا: نعرض السبب (عدد الأيام)
+        show_projects_dropdown(df_over, "📌 تفاصيل المشاريع المتأخرة فعليًا", show_reason=True)
 
 with col_fore:
     if st.button(f"⚠️ متوقع يتأخر (Forecast) • {forecast_count:,}", use_container_width=True, key="btn_forecast"):
         st.session_state.alerts_view = "forecast"
 
     if st.session_state.alerts_view == "forecast":
-        show_projects_dropdown(
-            alerts[alerts["is_forecast_late"]].copy(),
-            "📌 تفاصيل المشاريع المتوقع تأخرها (Forecast)"
-        )
+        df_fc = alerts[alerts["is_forecast_late"]].copy()
+        # للي متوقع يتأخر: نعرض سبب التنبؤ بالتفصيل
+        show_projects_dropdown(df_fc, "📌 تفاصيل المشاريع المتوقع تأخرها (Forecast) + سبب التنبؤ", show_reason=True)
 
 with col_all:
     if st.button("🔎 عرض الكل", use_container_width=True, key="btn_all"):
         st.session_state.alerts_view = "all"
 
     if st.session_state.alerts_view == "all":
-        show_projects_dropdown(
-            alerts[(alerts["is_overdue"]) | (alerts["is_forecast_late"])].copy(),
-            "📌 كل المشاريع (متأخرة + متوقع تأخرها)"
-        )
+        df_all = alerts[(alerts["is_overdue"]) | (alerts["is_forecast_late"])].copy()
+        show_projects_dropdown(df_all, "📌 كل المشاريع (متأخرة + متوقع تأخرها) + الأسباب", show_reason=True)
 
 st.divider()
 
