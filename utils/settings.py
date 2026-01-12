@@ -4,7 +4,7 @@ from pathlib import Path
 SETTINGS_PATH = Path("data") / "ui_settings.json"
 
 DEFAULT_SETTINGS = {
-    "lang": "ar",  # default language (admin sets default)
+    "lang": "ar",
     "theme": {
         "primary": "#3B82F6",
         "bg": "#0B1220",
@@ -17,23 +17,23 @@ DEFAULT_SETTINGS = {
     },
     "logo": {
         "enabled": True,
-        "location": "header",  # header | sidebar
-        "align": "left",       # left | center | right
+        "location": "header",
+        "align": "center",
         "width": 160,
         "top_margin": 6,
         "bottom_margin": 10,
         "file_path": "data/logo.png"
     },
- "layout": {
-  "title_align": "right",
-  "title_size_px": 22,
-  "cards_gap_px": 38
-},
+    "layout": {
+        "title_align": "right",
+        "title_size_px": 22,
+        "cards_gap_px": 38
+    },
     "data": {
-        # أسماء الأعمدة المتوقعة للخريطة
         "lat_col": "lat",
         "lon_col": "lon",
-        "map_link_col": "رابط الموقع"  # لو ما عندك lat/lon واستخدمتي رابط
+        "map_link_col": "رابط الموقع",
+        "show_map": True  # ✅ NEW
     },
     "texts": {
         "dashboard_title_ar": "📊 داشبورد المشاريع",
