@@ -11,6 +11,7 @@ require_admin()
 st.title("🎨 إعدادات الواجهة (Admin)")
 
 settings = load_settings()
+texts = settings.get("texts", {})
 theme = settings["theme"]
 logo = settings["logo"]
 
@@ -102,3 +103,7 @@ with right:
         st.session_state.pop("palette_work", None)
         st.success("تمت إعادة الإعدادات الافتراضية ✅")
         st.rerun()
+        st.subheader("✍️ نصوص الصفحات")
+texts["dashboard_title"] = st.text_input("عنوان صفحة الداشبورد", value=texts.get("dashboard_title", "📊 داشبورد المشاريع"))
+texts["upload_title"] = st.text_input("عنوان صفحة رفع البيانات", value=texts.get("upload_title", "📤 رفع البيانات الأسبوعي"))
+
