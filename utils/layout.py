@@ -1,11 +1,12 @@
 import streamlit as st
 
+
 def sidebar_menu(active: str):
     """
     active = home | upload | settings | login
     """
 
-    # إخفاء App الافتراضي
+    # إخفاء App الافتراضي فقط (بدون كسر التنقل)
     st.markdown("""
     <style>
     div[data-testid="stSidebarNav"] { display: none !important; }
@@ -21,17 +22,30 @@ def sidebar_menu(active: str):
     <hr class="brand-hr"/>
     """, unsafe_allow_html=True)
 
-    def go(label, path, is_active):
-        if st.sidebar.button(label, use_container_width=True, disabled=is_active):
-            st.switch_page(path)
+    # ✅ روابط رسمية وآمنة
+    st.sidebar.page_link(
+        "pages/1_🏠_الصفحة_الرئيسية.py",
+        label="🏠 الصفحة الرئيسية",
+        disabled=(active == "home"),
+    )
 
-    # ✅ الصفحة الرئيسية = الداشبورد
-    go("🏠 الصفحة الرئيسية", "pages/1_🏠_الصفحة_الرئيسية.py", active == "home")
+    st.sidebar.page_link(
+        "pages/2_📤_رفع_البيانات.py",
+        label="📤 رفع البيانات",
+        disabled=(active == "upload"),
+    )
 
-    # باقي الصفحات
-    go("📤 رفع البيانات", "pages/2_📤_رفع_البيانات.py", active == "upload")
-    go("🎨 الإعدادات", "pages/3_🎨_الإعدادات.py", active == "settings")
-    go("🔐 تسجيل الدخول", "pages/4_🔐_تسجيل_الدخول.py", active == "login")
+    st.sidebar.page_link(
+        "pages/3_🎨_الإعدادات.py",
+        label="🎨 الإعدادات",
+        disabled=(active == "settings"),
+    )
+
+    st.sidebar.page_link(
+        "pages/4_🔐_تسجيل_الدخول.py",
+        label="🔐 تسجيل الدخول",
+        disabled=(active == "login"),
+    )
 
     st.sidebar.markdown("<hr class='brand-hr'/>", unsafe_allow_html=True)
 
