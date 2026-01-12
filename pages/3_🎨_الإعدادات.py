@@ -91,7 +91,7 @@ if st.button("↩️ استرجاع الإعدادات الافتراضية"):
     st.success("تم استرجاع الإعدادات الافتراضية ✅")
     st.rerun()
 
-    else:
+  
         st.info("لا يوجد لوقو محفوظ.")
 with right:
     st.subheader("إعدادات اللوقو")
