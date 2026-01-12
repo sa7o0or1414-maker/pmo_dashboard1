@@ -3,9 +3,10 @@ import pandas as pd
 import streamlit as st
 import plotly.express as px
 
-st.set_page_config(page_title="الداشبورد", layout="wide")
+from utils.layout import render_header
 
-st.title("📊 داشبورد المشاريع")
+st.set_page_config(page_title="الداشبورد", layout="wide")
+render_header("📊 داشبورد المشاريع")
 
 path = os.path.join("data", "latest.xlsx")
 if not os.path.exists(path):
