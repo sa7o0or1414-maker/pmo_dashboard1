@@ -90,11 +90,13 @@ with right:
     logo["bottom_margin"] = st.slider("مسافة تحت اللوقو", 0, 40, int(logo.get("bottom_margin", 10)))
 
     st.markdown("---")
-    if st.button("💾 حفظ الإعدادات"):
-        settings["theme"] = theme
-        settings["logo"] = logo
-        save_settings(settings)
-        st.success("تم حفظ الإعدادات ✅")
+  if st.button("💾 حفظ الإعدادات"):
+    settings["theme"] = theme
+    settings["logo"] = logo
+    settings["texts"] = texts
+    save_settings(settings)
+    st.success("تم حفظ الإعدادات ✅")
+    st.rerun()
         st.info("إذا ما انعكس فورًا، سوي Refresh أو Rerun.")
 
     if st.button("↩️ استرجاع الافتراضي"):
