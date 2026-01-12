@@ -78,7 +78,41 @@ def ensure_latlon(frame: pd.DataFrame) -> pd.DataFrame:
     out[lon_col] = pd.NA
     return out
 
-# ---------- Sidebar filters (بدون عنوان "الفلاتر") ----------
+def show_projects_dropdown(table_df: pd.DataFrame, title: str):
+    """يعرض قائمة منسدلة فيها أسماء المشاريع + جدول مختصر."""
+    name_col = "إسم المشـــروع" if "إسم المشـــروع" in table_df.columns else None
+    if len(table_df) == 0:
+        st.info("لا توجد نتائج.")
+        return
+
+    with st.expander(title, expanded=True):
+        if name_col:
+            st.markdown("**أسماء المشاريع:**")
+            names = table_df[name_col].dropna().astype(str).unique().tolist()
+            for n in names:
+                st.write("•", n)
+        else:
+            st.info("عمود اسم المشروع غير موجود.")
+
+        cols_show = [c for c in [
+            "رقم العقد",
+            "إسم المشـــروع",
+            "البلدية",
+            "الجهة",
+            "حالة المشروع",
+            "نسبة الإنجاز",
+            "تاريخ الانتهاء من المشروع",
+            "forecast_end"
+        ] if c in table_df.columns]
+
+        # ترتيب منطقي
+        sort_cols = [c for c in ["is_overdue", "is_forecast_late"] if c in table_df.columns]
+        if sort_cols:
+            table_df = table_df.sort_values(by=sort_cols, ascending=False)
+
+        st.dataframe(table_df[cols_show], use_container_width=True)
+
+# ---------- Sidebar filters (بدون كلمة الفلاتر) ----------
 status_opt = ["الكل"] + safe_unique(df, "حالة المشروع")
 mun_opt = ["الكل"] + safe_unique(df, "البلدية")
 entity_opt = ["الكل"] + safe_unique(df, "الجهة")
@@ -133,12 +167,12 @@ if "المدة المنقضية بالايام" in alerts.columns:
 if "نسبة الإنجاز" in alerts.columns:
     alerts["نسبة الإنجاز"] = pd.to_numeric(alerts["نسبة الإنجاز"], errors="coerce")
 
-# ---------- Forecast (محصّن ضد القيم الشاذة) ----------
+# Forecast (محصّن)
 alerts["predicted_total_days"] = pd.Series([None] * len(alerts), dtype="float64")
 alerts["forecast_end"] = pd.NaT
 
-MAX_PREDICT_DAYS = 20000  # حد أمان
-MIN_PROGRESS = 0.5        # أقل إنجاز للتنبؤ
+MAX_PREDICT_DAYS = 20000
+MIN_PROGRESS = 0.5
 MAX_PROGRESS = 100
 
 can_forecast = (
@@ -168,7 +202,7 @@ if can_forecast:
         pd.to_timedelta(alerts.loc[valid2, "predicted_total_days"], unit="D", errors="coerce")
     )
 
-# Overdue flag
+# Flags
 alerts["is_overdue"] = False
 if "تاريخ الانتهاء من المشروع" in alerts.columns:
     prog = alerts["نسبة الإنجاز"] if "نسبة الإنجاز" in alerts.columns else pd.Series([0] * len(alerts))
@@ -178,7 +212,6 @@ if "تاريخ الانتهاء من المشروع" in alerts.columns:
         (prog.fillna(0) < 100)
     )
 
-# Forecast late flag
 alerts["is_forecast_late"] = False
 if "تاريخ الانتهاء من المشروع" in alerts.columns:
     alerts["is_forecast_late"] = (
@@ -187,31 +220,44 @@ if "تاريخ الانتهاء من المشروع" in alerts.columns:
         (alerts["forecast_end"] > alerts["تاريخ الانتهاء من المشروع"])
     )
 
-# ---------- Clickable Cards (show projects by click) ----------
+# ---------- Click-to-expand cards (dropdown مباشرة تحتها) ----------
 if "alerts_view" not in st.session_state:
-    st.session_state.alerts_view = "all"  # all | overdue | forecast
+    st.session_state.alerts_view = None  # None | overdue | forecast
 
 overdue_count = int(alerts["is_overdue"].sum())
 forecast_count = int(alerts["is_forecast_late"].sum())
 
-b1, b2, b3, b4 = st.columns([3, 3, 2, 2])
+col_over, col_fore, col_all = st.columns([3, 3, 2])
 
-with b1:
+with col_over:
     if st.button(f"⛔ متأخر فعليًا • {overdue_count:,}", use_container_width=True, key="btn_overdue"):
         st.session_state.alerts_view = "overdue"
 
-with b2:
+    if st.session_state.alerts_view == "overdue":
+        show_projects_dropdown(
+            alerts[alerts["is_overdue"]].copy(),
+            "📌 تفاصيل المشاريع المتأخرة فعليًا"
+        )
+
+with col_fore:
     if st.button(f"⚠️ متوقع يتأخر (Forecast) • {forecast_count:,}", use_container_width=True, key="btn_forecast"):
         st.session_state.alerts_view = "forecast"
 
-with b3:
+    if st.session_state.alerts_view == "forecast":
+        show_projects_dropdown(
+            alerts[alerts["is_forecast_late"]].copy(),
+            "📌 تفاصيل المشاريع المتوقع تأخرها (Forecast)"
+        )
+
+with col_all:
     if st.button("🔎 عرض الكل", use_container_width=True, key="btn_all"):
         st.session_state.alerts_view = "all"
 
-with b4:
-    # كرت إضافي (اختياري): إجمالي التنبيهات
-    total_alerts = int(((alerts["is_overdue"]) | (alerts["is_forecast_late"])).sum())
-    st.metric("إجمالي التنبيهات", f"{total_alerts:,}")
+    if st.session_state.alerts_view == "all":
+        show_projects_dropdown(
+            alerts[(alerts["is_overdue"]) | (alerts["is_forecast_late"])].copy(),
+            "📌 كل المشاريع (متأخرة + متوقع تأخرها)"
+        )
 
 st.divider()
 
@@ -254,55 +300,6 @@ if "تاريخ الانتهاء من المشروع" in alerts.columns:
         r.info("لا توجد بيانات كافية لعرض التنبؤ.")
 else:
     r.info("عمود 'تاريخ الانتهاء من المشروع' غير موجود لعرض التنبؤ.")
-
-st.divider()
-
-# ---------- Projects list based on clicked card ----------
-st.subheader("📌 المشاريع حسب اختيار الكرت")
-
-view = st.session_state.alerts_view
-
-if view == "overdue":
-    table_df = alerts[alerts["is_overdue"]].copy()
-    st.caption("عرض: المشاريع المتأخرة فعليًا")
-elif view == "forecast":
-    table_df = alerts[alerts["is_forecast_late"]].copy()
-    st.caption("عرض: المشاريع المتوقع تأخرها (Forecast)")
-else:
-    table_df = alerts[(alerts["is_overdue"]) | (alerts["is_forecast_late"])].copy()
-    st.caption("عرض: كل المتأخرة + المتوقع تأخرها")
-
-name_col = "إسم المشـــروع" if "إسم المشـــروع" in table_df.columns else None
-if len(table_df) == 0:
-    st.info("لا توجد نتائج حسب الاختيار الحالي.")
-else:
-    # أسماء المشاريع (قائمة)
-    if name_col:
-        with st.expander("📝 أسماء المشاريع", expanded=True):
-            names = table_df[name_col].dropna().astype(str).unique().tolist()
-            for n in names:
-                st.write("•", n)
-    else:
-        st.info("عمود اسم المشروع غير موجود لعرض الأسماء.")
-
-    # جدول التفاصيل
-    cols_show = [c for c in [
-        "رقم العقد",
-        "إسم المشـــروع",
-        "البلدية",
-        "الجهة",
-        "حالة المشروع",
-        "نسبة الإنجاز",
-        "تاريخ الانتهاء من المشروع",
-        "forecast_end"
-    ] if c in table_df.columns]
-
-    # ترتيب: المتأخر أولاً
-    sort_cols = [c for c in ["is_overdue", "is_forecast_late"] if c in table_df.columns]
-    if sort_cols:
-        table_df = table_df.sort_values(by=sort_cols, ascending=False)
-
-    st.dataframe(table_df[cols_show], use_container_width=True)
 
 st.divider()
 
