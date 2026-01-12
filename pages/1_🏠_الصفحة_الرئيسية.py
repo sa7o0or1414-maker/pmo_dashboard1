@@ -2,14 +2,12 @@ import os
 import pandas as pd
 import streamlit as st
 import plotly.express as px
-from utils.layout import sidebar_menu, page_title
 
-sidebar_menu(active="home")
-page_title("📊 لوحة المعلومات")
+from utils.layout import sidebar_menu, page_title
 from utils.analytics import analyze
 
 # --------------------------------------------------
-# إعداد الصفحة
+# إعداد الصفحة (لازم أول شي)
 # --------------------------------------------------
 st.set_page_config(
     page_title="الصفحة الرئيسية",
@@ -17,7 +15,10 @@ st.set_page_config(
     layout="wide"
 )
 
-sidebar_menu(active="dashboard")
+# --------------------------------------------------
+# السايدبار والعنوان (مرة وحدة فقط)
+# --------------------------------------------------
+sidebar_menu(active="home")
 page_title("📊 لوحة المعلومات")
 
 # --------------------------------------------------
@@ -89,7 +90,7 @@ c4.metric(
 st.divider()
 
 # --------------------------------------------------
-# مربعات التنبيهات (تفتح/تغلق بالضغط)
+# مربعات التنبيهات (تفتح / تغلق)
 # --------------------------------------------------
 if "show_overdue" not in st.session_state:
     st.session_state.show_overdue = False
@@ -141,91 +142,84 @@ with b2:
 st.divider()
 
 # --------------------------------------------------
-# شارتات ديناميكية (تُبنى من الأعمدة)
+# الشارتات الديناميكية
 # --------------------------------------------------
 row1_l, row1_r = st.columns(2)
 
 if "حالة المشروع" in filtered.columns:
-    fig = px.histogram(
-        filtered,
-        x="حالة المشروع",
-        title="توزيع المشاريع حسب الحالة"
+    row1_l.plotly_chart(
+        px.histogram(filtered, x="حالة المشروع", title="توزيع المشاريع حسب الحالة"),
+        use_container_width=True,
     )
-    row1_l.plotly_chart(fig, use_container_width=True)
 else:
     row1_l.info("عمود (حالة المشروع) غير موجود")
 
 if "البلدية" in filtered.columns:
-    fig = px.bar(
-        filtered["البلدية"].value_counts().reset_index(),
-        x="البلدية",
-        y="count",
-        title="عدد المشاريع لكل بلدية"
+    row1_r.plotly_chart(
+        px.bar(
+            filtered["البلدية"].value_counts().reset_index(),
+            x="البلدية",
+            y="count",
+            title="عدد المشاريع لكل بلدية",
+        ),
+        use_container_width=True,
     )
-    row1_r.plotly_chart(fig, use_container_width=True)
 else:
     row1_r.info("عمود (البلدية) غير موجود")
 
 row2_l, row2_r = st.columns(2)
 
 if "نسبة الإنجاز" in filtered.columns:
-    fig = px.box(
-        filtered,
-        y="نسبة الإنجاز",
-        title="توزيع نسبة الإنجاز"
+    row2_l.plotly_chart(
+        px.box(filtered, y="نسبة الإنجاز", title="توزيع نسبة الإنجاز"),
+        use_container_width=True,
     )
-    row2_l.plotly_chart(fig, use_container_width=True)
 else:
     row2_l.info("عمود (نسبة الإنجاز) غير موجود")
 
 if "قيمة العقد" in filtered.columns and "المقاول" in filtered.columns:
     top = (
-        filtered
-        .groupby("المقاول")["قيمة العقد"]
+        filtered.groupby("المقاول")["قيمة العقد"]
         .sum()
         .sort_values(ascending=False)
         .head(10)
         .reset_index()
     )
-    fig = px.bar(
-        top,
-        x="المقاول",
-        y="قيمة العقد",
-        title="أعلى 10 مقاولين حسب قيمة العقود"
+    row2_r.plotly_chart(
+        px.bar(top, x="المقاول", y="قيمة العقد", title="أعلى 10 مقاولين حسب قيمة العقود"),
+        use_container_width=True,
     )
-    row2_r.plotly_chart(fig, use_container_width=True)
 else:
     row2_r.info("يلزم وجود (قيمة العقد) و(المقاول)")
 
 row3_l, row3_r = st.columns(2)
 
 if "نسبة الصرف" in filtered.columns:
-    fig = px.histogram(
-        filtered,
-        x="نسبة الصرف",
-        nbins=20,
-        title="توزيع نسبة الصرف"
+    row3_l.plotly_chart(
+        px.histogram(filtered, x="نسبة الصرف", nbins=20, title="توزيع نسبة الصرف"),
+        use_container_width=True,
     )
-    row3_l.plotly_chart(fig, use_container_width=True)
 else:
     row3_l.info("عمود (نسبة الصرف) غير موجود")
 
 if "نسبة الإنجاز" in filtered.columns and "نسبة الصرف" in filtered.columns:
-    fig = px.scatter(
-        filtered,
-        x="نسبة الإنجاز",
-        y="نسبة الصرف",
-        hover_name=("إسم المشـــروع" if "إسم المشـــروع" in filtered.columns else None),
-        title="العلاقة بين الإنجاز والصرف"
+    row3_r.plotly_chart(
+        px.scatter(
+            filtered,
+            x="نسبة الإنجاز",
+            y="نسبة الصرف",
+            hover_name=("إسم المشـــروع" if "إسم المشـــروع" in filtered.columns else None),
+            title="العلاقة بين الإنجاز والصرف",
+        ),
+        use_container_width=True,
     )
-    row3_r.plotly_chart(fig, use_container_width=True)
 else:
     row3_r.info("يلزم وجود (نسبة الإنجاز) و(نسبة الصرف)")
 
 st.divider()
 
 # --------------------------------------------------
-# جدول كامل (كل الأعمدة مثل Power BI)
+# جدول كامل
 # --------------------------------------------------
 st.subheader("📋 جدول البيانات (حسب الفلاتر)")
 st.dataframe(filtered, use_container_width=True)
