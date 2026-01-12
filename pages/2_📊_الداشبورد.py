@@ -9,20 +9,19 @@ import plotly.express as px
 from utils.layout import render_header
 from utils.settings import load_settings
 
-# ---------- Page config ----------
 st.set_page_config(page_title="الداشبورد", layout="wide")
 render_header(title_key_base="dashboard_title", page_title_fallback="📊 داشبورد المشاريع")
 
-# ---------- Settings ----------
 settings = load_settings()
 theme = settings.get("theme", {})
 palette = theme.get("palette", ["#3B82F6", "#22C55E", "#F59E0B", "#EF4444", "#A855F7"])
+
 data_cfg = settings.get("data", {})
 lat_col = data_cfg.get("lat_col", "lat")
 lon_col = data_cfg.get("lon_col", "lon")
 map_link_col = data_cfg.get("map_link_col", "رابط الموقع")
+show_map = bool(data_cfg.get("show_map", True))
 
-# ---------- Load data ----------
 path = os.path.join("data", "latest.xlsx")
 if not os.path.exists(path):
     st.warning("لا يوجد ملف بيانات بعد. اذهبي لصفحة (رفع البيانات) وارفعِ ملف Excel.")
@@ -31,35 +30,28 @@ if not os.path.exists(path):
 df = pd.read_excel(path, sheet_name=0)
 df.columns = [str(c).strip() for c in df.columns]
 
-# ---------- Helpers ----------
 def safe_unique(frame: pd.DataFrame, col: str):
     if col not in frame.columns:
         return []
     return sorted([x for x in frame[col].dropna().unique().tolist()])
 
 def parse_latlon_from_link(link: str):
-    """يدعم روابط Google Maps مثل .../@lat,lon أو ?q=lat,lon"""
     if not isinstance(link, str) or not link:
         return None, None
-
     m = re.search(r"@(-?\d+\.\d+),(-?\d+\.\d+)", link)
     if m:
         return float(m.group(1)), float(m.group(2))
-
     m = re.search(r"[?&]q=(-?\d+\.\d+),(-?\d+\.\d+)", link)
     if m:
         return float(m.group(1)), float(m.group(2))
-
     return None, None
 
 def ensure_latlon(frame: pd.DataFrame) -> pd.DataFrame:
     out = frame.copy()
-
     if lat_col in out.columns and lon_col in out.columns:
         out[lat_col] = pd.to_numeric(out[lat_col], errors="coerce")
         out[lon_col] = pd.to_numeric(out[lon_col], errors="coerce")
         return out
-
     if map_link_col in out.columns:
         lats, lons = [], []
         for x in out[map_link_col].fillna("").astype(str).tolist():
@@ -69,7 +61,6 @@ def ensure_latlon(frame: pd.DataFrame) -> pd.DataFrame:
         out[lat_col] = pd.to_numeric(pd.Series(lats), errors="coerce")
         out[lon_col] = pd.to_numeric(pd.Series(lons), errors="coerce")
         return out
-
     out[lat_col] = pd.NA
     out[lon_col] = pd.NA
     return out
@@ -90,26 +81,21 @@ def _fmt_pct(x):
     except Exception:
         return "—"
 
-def show_projects_dropdown(table_df: pd.DataFrame, title: str, show_reason: bool = True):
-    """منسدلة تلقائيًا تعرض: أسماء المشاريع + جدول مع أسباب (اختياري)."""
+def show_dropdown(table_df: pd.DataFrame, title: str):
     if len(table_df) == 0:
         st.info("لا توجد نتائج.")
         return
 
     name_col = "إسم المشـــروع" if "إسم المشـــروع" in table_df.columns else None
-
     with st.expander(title, expanded=True):
-        # أسماء المشاريع
         if name_col:
             st.markdown("**أسماء المشاريع:**")
-            names = table_df[name_col].dropna().astype(str).unique().tolist()
-            for n in names:
+            for n in table_df[name_col].dropna().astype(str).unique().tolist():
                 st.write("•", n)
         else:
             st.info("عمود اسم المشروع غير موجود.")
 
-        # جدول
-        base_cols = [
+        cols_show = [c for c in [
             "رقم العقد",
             "إسم المشـــروع",
             "البلدية",
@@ -119,21 +105,17 @@ def show_projects_dropdown(table_df: pd.DataFrame, title: str, show_reason: bool
             "تاريخ الانتهاء من المشروع",
             "forecast_end",
             "variance_days",
-        ]
-        if show_reason:
-            base_cols.insert(8, "reason")  # سبب التأخر/التنبؤ
+            "reason"
+        ] if c in table_df.columns]
 
-        cols_show = [c for c in base_cols if c in table_df.columns]
-
-        # ترتيب: المتأخر أولًا
         sort_cols = [c for c in ["is_overdue", "is_forecast_late", "variance_days"] if c in table_df.columns]
         if sort_cols:
-            asc = [False, False, False][: len(sort_cols)]
+            asc = [False] * len(sort_cols)
             table_df = table_df.sort_values(by=sort_cols, ascending=asc)
 
         st.dataframe(table_df[cols_show], use_container_width=True)
 
-# ---------- Sidebar filters (بدون كلمة الفلاتر) ----------
+# ---------- Sidebar filters (بدون كلمة "الفلاتر") ----------
 status_opt = ["الكل"] + safe_unique(df, "حالة المشروع")
 mun_opt = ["الكل"] + safe_unique(df, "البلدية")
 entity_opt = ["الكل"] + safe_unique(df, "الجهة")
@@ -154,20 +136,9 @@ if entity != "الكل" and "الجهة" in filtered.columns:
 k1, k2, k3, k4 = st.columns(4)
 k1.metric("عدد المشاريع", f"{len(filtered):,}")
 
-if "قيمة العقد" in filtered.columns:
-    k2.metric("إجمالي قيمة العقود", f"{filtered['قيمة العقد'].fillna(0).sum():,.0f}")
-else:
-    k2.metric("إجمالي قيمة العقود", "—")
-
-if "قيمة المستخلصات المعتمده" in filtered.columns:
-    k3.metric("إجمالي المستخلصات", f"{filtered['قيمة المستخلصات المعتمده'].fillna(0).sum():,.0f}")
-else:
-    k3.metric("إجمالي المستخلصات", "—")
-
-if "نسبة الإنجاز" in filtered.columns:
-    k4.metric("متوسط الإنجاز", f"{pd.to_numeric(filtered['نسبة الإنجاز'], errors='coerce').fillna(0).mean():.1f}%")
-else:
-    k4.metric("متوسط الإنجاز", "—")
+k2.metric("إجمالي قيمة العقود", f"{filtered['قيمة العقد'].fillna(0).sum():,.0f}" if "قيمة العقد" in filtered.columns else "—")
+k3.metric("إجمالي المستخلصات", f"{filtered['قيمة المستخلصات المعتمده'].fillna(0).sum():,.0f}" if "قيمة المستخلصات المعتمده" in filtered.columns else "—")
+k4.metric("متوسط الإنجاز", f"{pd.to_numeric(filtered['نسبة الإنجاز'], errors='coerce').fillna(0).mean():.1f}%" if "نسبة الإنجاز" in filtered.columns else "—")
 
 st.divider()
 
@@ -175,20 +146,16 @@ st.divider()
 alerts = filtered.copy()
 today = pd.Timestamp(date.today())
 
-# تجهيز تواريخ/أرقام
 if "تاريخ الانتهاء من المشروع" in alerts.columns:
     alerts["تاريخ الانتهاء من المشروع"] = pd.to_datetime(alerts["تاريخ الانتهاء من المشروع"], errors="coerce")
-
 if "تاريخ تسليم الموقع" in alerts.columns:
     alerts["تاريخ تسليم الموقع"] = pd.to_datetime(alerts["تاريخ تسليم الموقع"], errors="coerce")
-
 if "المدة المنقضية بالايام" in alerts.columns:
     alerts["المدة المنقضية بالايام"] = pd.to_numeric(alerts["المدة المنقضية بالايام"], errors="coerce")
-
 if "نسبة الإنجاز" in alerts.columns:
     alerts["نسبة الإنجاز"] = pd.to_numeric(alerts["نسبة الإنجاز"], errors="coerce")
 
-# ---------- Forecast (محصّن) ----------
+# Forecast (محصّن)
 alerts["predicted_total_days"] = pd.Series([None] * len(alerts), dtype="float64")
 alerts["forecast_end"] = pd.NaT
 
@@ -196,11 +163,7 @@ MAX_PREDICT_DAYS = 20000
 MIN_PROGRESS = 0.5
 MAX_PROGRESS = 100
 
-can_forecast = (
-    ("المدة المنقضية بالايام" in alerts.columns) and
-    ("نسبة الإنجاز" in alerts.columns) and
-    ("تاريخ تسليم الموقع" in alerts.columns)
-)
+can_forecast = ("المدة المنقضية بالايام" in alerts.columns) and ("نسبة الإنجاز" in alerts.columns) and ("تاريخ تسليم الموقع" in alerts.columns)
 
 if can_forecast:
     valid = (
@@ -240,22 +203,18 @@ if "تاريخ الانتهاء من المشروع" in alerts.columns:
         (alerts["forecast_end"] > alerts["تاريخ الانتهاء من المشروع"])
     )
 
-# ---------- Reasons (سبب التأخر/التنبؤ) ----------
-alerts["variance_days"] = pd.NA  # الفرق بين forecast_end و planned_end
+# Reasons
+alerts["variance_days"] = pd.NA
 if "تاريخ الانتهاء من المشروع" in alerts.columns:
-    # variance_days = forecast_end - planned_end
     alerts["variance_days"] = (alerts["forecast_end"] - alerts["تاريخ الانتهاء من المشروع"]).dt.days
 
 def build_reason(row):
-    # متأخر فعليًا
     if bool(row.get("is_overdue", False)):
         planned = row.get("تاريخ الانتهاء من المشروع", pd.NaT)
         if pd.isna(planned):
             return "متأخر فعليًا: تاريخ الانتهاء المخطط غير موجود."
-        days = (today - planned).days
-        return f"متأخر فعليًا: تجاوز تاريخ الانتهاء المخطط بـ {days} يوم."
+        return f"متأخر فعليًا: تجاوز المخطط بـ {(today - planned).days} يوم."
 
-    # متوقع يتأخر (Forecast)
     if bool(row.get("is_forecast_late", False)):
         progress = row.get("نسبة الإنجاز", pd.NA)
         elapsed = row.get("المدة المنقضية بالايام", pd.NA)
@@ -264,64 +223,47 @@ def build_reason(row):
         planned_end = row.get("تاريخ الانتهاء من المشروع", pd.NaT)
         variance = row.get("variance_days", pd.NA)
 
-        # إذا بيانات ناقصة
         missing = []
         if pd.isna(progress): missing.append("نسبة الإنجاز")
         if pd.isna(elapsed): missing.append("المدة المنقضية")
         if pd.isna(predicted): missing.append("أيام متوقعة إجمالًا")
         if pd.isna(forecast_end): missing.append("تاريخ التنبؤ")
         if pd.isna(planned_end): missing.append("تاريخ الانتهاء المخطط")
-
         if missing:
             return "متوقع يتأخر: بيانات غير كافية (" + "، ".join(missing) + ")."
 
-        # رسالة تفسير التنبؤ
         return (
-            f"التنبؤ: المدة المنقضية {_fmt_days(elapsed)} مع إنجاز {_fmt_pct(progress)} "
-            f"⇒ الأيام المتوقعة إجمالًا {_fmt_days(predicted)} "
+            f"التنبؤ: مدة {_fmt_days(elapsed)} مع إنجاز {_fmt_pct(progress)} "
+            f"⇒ إجمالي متوقع {_fmt_days(predicted)} "
             f"⇒ تاريخ التنبؤ {pd.to_datetime(forecast_end).date()} "
             f"أبعد من المخطط بـ {int(variance)} يوم."
         )
-
-    # لا شيء
     return ""
 
 alerts["reason"] = alerts.apply(build_reason, axis=1)
 
-# ---------- Click-to-expand cards (منسدلة تحتها) ----------
-if "alerts_view" not in st.session_state:
-    st.session_state.alerts_view = None  # None | overdue | forecast | all
+# ---------- Toggle buttons (ضغطة تظهر/ضغطة تختفي) ----------
+if "alerts_toggle" not in st.session_state:
+    st.session_state.alerts_toggle = None  # None | overdue | forecast
 
 overdue_count = int(alerts["is_overdue"].sum())
 forecast_count = int(alerts["is_forecast_late"].sum())
 
-col_over, col_fore, col_all = st.columns([3, 3, 2])
+col_over, col_fore = st.columns(2)
 
 with col_over:
     if st.button(f"⛔ متأخر فعليًا • {overdue_count:,}", use_container_width=True, key="btn_overdue"):
-        st.session_state.alerts_view = "overdue"
+        st.session_state.alerts_toggle = None if st.session_state.alerts_toggle == "overdue" else "overdue"
 
-    if st.session_state.alerts_view == "overdue":
-        df_over = alerts[alerts["is_overdue"]].copy()
-        # للمتأخر فعليًا: نعرض السبب (عدد الأيام)
-        show_projects_dropdown(df_over, "📌 تفاصيل المشاريع المتأخرة فعليًا", show_reason=True)
+    if st.session_state.alerts_toggle == "overdue":
+        show_dropdown(alerts[alerts["is_overdue"]].copy(), "📌 تفاصيل المتأخرة فعليًا")
 
 with col_fore:
     if st.button(f"⚠️ متوقع يتأخر (Forecast) • {forecast_count:,}", use_container_width=True, key="btn_forecast"):
-        st.session_state.alerts_view = "forecast"
+        st.session_state.alerts_toggle = None if st.session_state.alerts_toggle == "forecast" else "forecast"
 
-    if st.session_state.alerts_view == "forecast":
-        df_fc = alerts[alerts["is_forecast_late"]].copy()
-        # للي متوقع يتأخر: نعرض سبب التنبؤ بالتفصيل
-        show_projects_dropdown(df_fc, "📌 تفاصيل المشاريع المتوقع تأخرها (Forecast) + سبب التنبؤ", show_reason=True)
-
-with col_all:
-    if st.button("🔎 عرض الكل", use_container_width=True, key="btn_all"):
-        st.session_state.alerts_view = "all"
-
-    if st.session_state.alerts_view == "all":
-        df_all = alerts[(alerts["is_overdue"]) | (alerts["is_forecast_late"])].copy()
-        show_projects_dropdown(df_all, "📌 كل المشاريع (متأخرة + متوقع تأخرها) + الأسباب", show_reason=True)
+    if st.session_state.alerts_toggle == "forecast":
+        show_dropdown(alerts[alerts["is_forecast_late"]].copy(), "📌 تفاصيل المتوقع تأخرها + سبب التنبؤ")
 
 st.divider()
 
@@ -367,44 +309,34 @@ else:
 
 st.divider()
 
-# ---------- Map (changes with filters) ----------
-st.subheader("🗺️ الخريطة (تتغير حسب الفلاتر)")
+# ---------- Map (اختياري من الإعدادات) ----------
+if show_map:
+    st.subheader("🗺️ الخريطة (تتغير حسب الفلاتر)")
+    geo = ensure_latlon(filtered)
+    geo = geo.dropna(subset=[lat_col, lon_col]).copy()
 
-geo = ensure_latlon(filtered)
-geo = geo.dropna(subset=[lat_col, lon_col]).copy()
+    if len(geo) == 0:
+        st.info("لا توجد إحداثيات. أضيفي في Excel أعمدة lat/lon أو رابط Google Maps في عمود رابط الموقع.")
+    else:
+        map_df = pd.DataFrame({
+            "lat": geo[lat_col].astype(float),
+            "lon": geo[lon_col].astype(float),
+        })
+        st.map(map_df, zoom=10)
 
-if len(geo) == 0:
-    st.info("لا توجد إحداثيات. أضيفي في Excel أعمدة lat/lon أو رابط Google Maps في عمود رابط الموقع.")
-else:
-    map_df = pd.DataFrame({
-        "lat": geo[lat_col].astype(float),
-        "lon": geo[lon_col].astype(float),
-    })
-    st.map(map_df, zoom=10)
-
-st.divider()
+    st.divider()
 
 # ---------- Regular charts ----------
 g1, g2 = st.columns(2)
 
 if "حالة المشروع" in filtered.columns:
-    fig1 = px.histogram(
-        filtered,
-        x="حالة المشروع",
-        title="توزيع المشاريع حسب الحالة",
-        color_discrete_sequence=palette
-    )
+    fig1 = px.histogram(filtered, x="حالة المشروع", title="توزيع المشاريع حسب الحالة", color_discrete_sequence=palette)
     g1.plotly_chart(fig1, use_container_width=True)
 else:
     g1.info("لا يوجد عمود 'حالة المشروع'.")
 
 if "البلدية" in filtered.columns:
-    fig2 = px.histogram(
-        filtered,
-        x="البلدية",
-        title="توزيع المشاريع حسب البلدية",
-        color_discrete_sequence=palette
-    )
+    fig2 = px.histogram(filtered, x="البلدية", title="توزيع المشاريع حسب البلدية", color_discrete_sequence=palette)
     g2.plotly_chart(fig2, use_container_width=True)
 else:
     g2.info("لا يوجد عمود 'البلدية'.")
