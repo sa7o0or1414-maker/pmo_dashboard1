@@ -3,10 +3,24 @@ from pathlib import Path
 from utils.settings import load_settings
 from utils.style import apply_theme
 
-def render_header(page_title: str = ""):
+def render_header(page_title: str = "", title_key: str | None = None):
     settings = load_settings()
     theme = settings.get("theme", {})
     logo = settings.get("logo", {})
+    texts = settings.get("texts", {})
+
+    apply_theme(theme, logo)
+
+    # ... (نفس كود اللوقو)
+
+    # عنوان الصفحة: يا من page_title أو من settings
+    final_title = page_title
+    if title_key:
+        final_title = texts.get(title_key, page_title)
+
+    if final_title:
+        st.markdown(f"## {final_title}")
+
 
     # طبّق الألوان على كل صفحة
     apply_theme(theme, logo)
