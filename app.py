@@ -10,71 +10,50 @@ from utils.layout import render_header
 from utils.settings import load_settings
 
 # --------------------------------------------------
-# إعدادات الصفحة
+# إعدادات الصفحة الرئيسية (Dashboard)
 # --------------------------------------------------
 st.set_page_config(page_title="الصفحة الرئيسية", page_icon="🏠", layout="wide")
-import streamlit as st
 
-st.set_page_config(
-    page_title="الصفحة الرئيسية",
-    page_icon="🏠",
-    layout="wide"
-)
-
-# ==================================================
-# 🎨 تخصيص السايدبار (إزالة App + توسيط العناوين)
-# ==================================================
-st.markdown("""
-<style>
-/* 1️⃣ حذف كلمة App (عنوان مجموعة الصفحات) */
-div[data-testid="stSidebarNav"] > div:first-child {
-    display: none !important;
-}
-
-/* 2️⃣ توسيط عنوان السايدبار المخصص */
-section[data-testid="stSidebar"] h2 {
-    text-align: center !important;
-    width: 100%;
-}
-
-/* 3️⃣ تحسين المسافات */
-section[data-testid="stSidebar"] {
-    padding-top: 1rem;
-}
-</style>
-""", unsafe_allow_html=True)
-
-# ==================================================
-# 🏠 العناوين اللي تبغينها فعليًا
-# ==================================================
-st.sidebar.markdown(
-    "<h2>🏠 الصفحة الرئيسية</h2>",
-    unsafe_allow_html=True
-)
-
-st.sidebar.markdown(
-    "<h3 style='text-align:center; margin-top:0.5rem;'>📊 لوحة المعلومات</h3>",
-    unsafe_allow_html=True
-)
-
-# ✅ إخفاء كلمة App (عنوان التنقل الافتراضي في السايدبار)
+# ✅ نخفي قائمة الصفحات الافتراضية (اللي يظهر فوقها App)
 st.markdown(
     """
     <style>
-    /* Hide the default "App" label in sidebar navigation */
-    div[data-testid="stSidebarNav"] > div:first-child {
-        display: none !important;
-    }
+    /* Hide default pages navigation (and "App" header) */
+    div[data-testid="stSidebarNav"] { display: none !important; }
     </style>
     """,
     unsafe_allow_html=True,
 )
 
-# ✅ العنوان اللي تبينه بدل App
-st.sidebar.title("🏠 الصفحة الرئيسية")
-st.sidebar.caption("📊 لوحة المعلومات")
+# --------------------------------------------------
+# سايدبار مخصص (يمين) بالترتيب المطلوب
+# --------------------------------------------------
+st.sidebar.markdown(
+    """
+    <div style="text-align:center; font-size:20px; font-weight:700; margin-top:6px; margin-bottom:10px;">
+        🏠 الصفحة الرئيسية
+    </div>
+    <div style="text-align:center; font-size:14px; opacity:0.85; margin-bottom:18px;">
+        لوحة المعلومات
+    </div>
+    """,
+    unsafe_allow_html=True,
+)
 
-# هيدر الموقع (اللوقو + العنوان + اللغة)
+# روابط الصفحات (بهذا الترتيب)
+# الصفحة الرئيسية = الداشبورد الحالي (بدون رابط)
+st.sidebar.markdown("—")
+
+# ✅ مهم: هذه الروابط تنقلك لصفحات pages
+st.sidebar.page_link("pages/4_📤_رفع_البيانات.py", label="📤 رفع البيانات")
+st.sidebar.page_link("pages/3_🎨_الإعدادات.py", label="🎨 الإعدادات")
+st.sidebar.page_link("pages/1_🔐_تسجيل_الدخول.py", label="🔐 تسجيل الدخول")
+
+st.sidebar.markdown("—")
+
+# --------------------------------------------------
+# هيدر أعلى الصفحة (لوغو + عنوان + لغة حسب نظامك)
+# --------------------------------------------------
 render_header(title_key_base="dashboard_title", page_title_fallback="📊 لوحة المعلومات")
 
 # --------------------------------------------------
@@ -197,8 +176,10 @@ def show_dropdown(table_df: pd.DataFrame, title: str):
         st.dataframe(table_df[cols_show], use_container_width=True)
 
 # --------------------------------------------------
-# Sidebar filters (بدون عنوان "الفلاتر")
+# الفلاتر (تحت القائمة المخصصة)
 # --------------------------------------------------
+st.sidebar.markdown("### 🔎 تحديد النتائج")
+
 status_opt = ["الكل"] + safe_unique(df, "حالة المشروع")
 mun_opt = ["الكل"] + safe_unique(df, "البلدية")
 entity_opt = ["الكل"] + safe_unique(df, "الجهة")
@@ -232,10 +213,10 @@ st.divider()
 alerts = filtered.copy()
 today = pd.Timestamp(date.today())
 
-if "تاريخ الانتهاء من المشروع" in alerts.columns:
-    alerts["تاريخ الانتهاء من المشروع"] = pd.to_datetime(alerts["تاريخ الانتهاء من المشروع"], errors="coerce")
-if "تاريخ تسليم الموقع" in alerts.columns:
-    alerts["تاريخ تسليم الموقع"] = pd.to_datetime(alerts["تاريخ تسليم الموقع"], errors="coerce")
+for col in ["تاريخ الانتهاء من المشروع", "تاريخ تسليم الموقع"]:
+    if col in alerts.columns:
+        alerts[col] = pd.to_datetime(alerts[col], errors="coerce")
+
 if "المدة المنقضية بالايام" in alerts.columns:
     alerts["المدة المنقضية بالايام"] = pd.to_numeric(alerts["المدة المنقضية بالايام"], errors="coerce")
 if "نسبة الإنجاز" in alerts.columns:
@@ -331,7 +312,7 @@ def build_reason(row):
 alerts["reason"] = alerts.apply(build_reason, axis=1)
 
 # --------------------------------------------------
-# Toggle buttons (ضغطة تظهر/ضغطة تختفي)
+# زرّين Toggle (ضغطة تظهر/ضغطة تختفي)
 # --------------------------------------------------
 if "alerts_toggle" not in st.session_state:
     st.session_state.alerts_toggle = None  # None | overdue | forecast
@@ -413,39 +394,28 @@ if show_map:
     if len(geo) == 0:
         st.info("لا توجد إحداثيات. أضيفي في Excel أعمدة lat/lon أو رابط Google Maps في عمود رابط الموقع.")
     else:
-        map_df = pd.DataFrame(
-            {
-                "lat": geo[lat_col].astype(float),
-                "lon": geo[lon_col].astype(float),
-            }
+        st.map(
+            pd.DataFrame(
+                {"lat": geo[lat_col].astype(float), "lon": geo[lon_col].astype(float)}
+            ),
+            zoom=10,
         )
-        st.map(map_df, zoom=10)
 
     st.divider()
 
 # --------------------------------------------------
-# Regular charts
+# Charts إضافية + جدول
 # --------------------------------------------------
 g1, g2 = st.columns(2)
 
 if "حالة المشروع" in filtered.columns:
-    fig1 = px.histogram(
-        filtered,
-        x="حالة المشروع",
-        title="توزيع المشاريع حسب الحالة",
-        color_discrete_sequence=palette,
-    )
+    fig1 = px.histogram(filtered, x="حالة المشروع", title="توزيع المشاريع حسب الحالة", color_discrete_sequence=palette)
     g1.plotly_chart(fig1, use_container_width=True)
 else:
     g1.info("لا يوجد عمود 'حالة المشروع'.")
 
 if "البلدية" in filtered.columns:
-    fig2 = px.histogram(
-        filtered,
-        x="البلدية",
-        title="توزيع المشاريع حسب البلدية",
-        color_discrete_sequence=palette,
-    )
+    fig2 = px.histogram(filtered, x="البلدية", title="توزيع المشاريع حسب البلدية", color_discrete_sequence=palette)
     g2.plotly_chart(fig2, use_container_width=True)
 else:
     g2.info("لا يوجد عمود 'البلدية'.")
