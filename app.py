@@ -13,6 +13,49 @@ from utils.settings import load_settings
 # إعدادات الصفحة
 # --------------------------------------------------
 st.set_page_config(page_title="الصفحة الرئيسية", page_icon="🏠", layout="wide")
+import streamlit as st
+
+st.set_page_config(
+    page_title="الصفحة الرئيسية",
+    page_icon="🏠",
+    layout="wide"
+)
+
+# ==================================================
+# 🎨 تخصيص السايدبار (إزالة App + توسيط العناوين)
+# ==================================================
+st.markdown("""
+<style>
+/* 1️⃣ حذف كلمة App (عنوان مجموعة الصفحات) */
+div[data-testid="stSidebarNav"] > div:first-child {
+    display: none !important;
+}
+
+/* 2️⃣ توسيط عنوان السايدبار المخصص */
+section[data-testid="stSidebar"] h2 {
+    text-align: center !important;
+    width: 100%;
+}
+
+/* 3️⃣ تحسين المسافات */
+section[data-testid="stSidebar"] {
+    padding-top: 1rem;
+}
+</style>
+""", unsafe_allow_html=True)
+
+# ==================================================
+# 🏠 العناوين اللي تبغينها فعليًا
+# ==================================================
+st.sidebar.markdown(
+    "<h2>🏠 الصفحة الرئيسية</h2>",
+    unsafe_allow_html=True
+)
+
+st.sidebar.markdown(
+    "<h3 style='text-align:center; margin-top:0.5rem;'>📊 لوحة المعلومات</h3>",
+    unsafe_allow_html=True
+)
 
 # ✅ إخفاء كلمة App (عنوان التنقل الافتراضي في السايدبار)
 st.markdown(
