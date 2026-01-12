@@ -12,15 +12,19 @@ DEFAULT_SETTINGS = {
         "radius": 18,
         "palette": ["#3B82F6", "#22C55E", "#F59E0B", "#EF4444", "#A855F7"]
     },
-  "logo": {
-    "enabled": True,
-    "location": "header",
-    "align": "left",
-    "width": 160,
-    "top_margin": 6,
-    "bottom_margin": 10,
-    "file_path": "data/logo.png"
-}
+    "logo": {
+        "enabled": True,
+        "location": "header",
+        "align": "left",
+        "width": 160,
+        "top_margin": 6,
+        "bottom_margin": 10,
+        "file_path": "data/logo.png"
+    },
+    "texts": {
+        "dashboard_title": "📊 داشبورد المشاريع",
+        "upload_title": "📤 رفع البيانات الأسبوعي"
+    }
 }
 
 def load_settings() -> dict:
