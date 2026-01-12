@@ -1,3 +1,5 @@
+from utils.layout import render_header
+render_header("📊 داشبورد المشاريع")
 pmo_dashboard/
   app.py
   requirements.txt
