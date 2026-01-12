@@ -3,27 +3,33 @@ from pathlib import Path
 
 from utils.auth import require_admin
 from utils.layout import render_header
-from utils.settings import load_settings, save_settings
+from utils.settings import load_settings, save_settings, DEFAULT_SETTINGS
 
-# لازم تكون أول شيء قبل أي مخرجات
 st.set_page_config(page_title="الإعدادات", layout="wide")
 
-# هيدر + حماية أدمن
-render_header("🎨 إعدادات الواجهة (Admin)")
+render_header(title_key_base="settings_title", page_title_fallback="🎨 إعدادات الواجهة (Admin)")
 require_admin()
 
 settings = load_settings()
+lang = settings.get("lang", "ar")
 theme = settings.get("theme", {})
 logo = settings.get("logo", {})
 texts = settings.get("texts", {})
 
 left, right = st.columns([1, 1])
 
-# =========================
-# العمود الأيسر: الألوان + النصوص
-# =========================
 with left:
-    st.subheader("ألوان الموقع")
+    st.subheader("🌐 اللغة والخط")
+
+    lang = st.selectbox("لغة الموقع", ["ar", "en"], index=0 if lang == "ar" else 1)
+
+    # الخطوط (موجودة افتراضيًا لكن نخليها قابلة للتغيير لو تبين)
+    theme["font_ar"] = st.text_input("خط عربي (CSS font name)", value=theme.get("font_ar", "Montserrat Arabic"))
+    theme["font_en"] = st.text_input("خط إنجليزي (CSS font name)", value=theme.get("font_en", "Montserrat"))
+
+    st.divider()
+
+    st.subheader("🎨 ألوان الموقع")
     theme["primary"] = st.color_picker("اللون الأساسي", theme.get("primary", "#3B82F6"))
     theme["bg"] = st.color_picker("الخلفية", theme.get("bg", "#0B1220"))
     theme["card_bg"] = st.color_picker("لون الكروت/الصناديق", theme.get("card_bg", "#111B2E"))
@@ -31,8 +37,6 @@ with left:
     theme["radius"] = st.slider("انحناء الزوايا", 8, 28, int(theme.get("radius", 18)))
 
     st.markdown("### 🧩 لوحة ألوان (Palette)")
-    st.caption("أضيفي/احذفي ألوان براحتك—نستخدمها لاحقًا للرسوم والبادجات وحالة المشاريع.")
-
     palette = theme.get("palette", [])
     if "palette_work" not in st.session_state:
         st.session_state.palette_work = palette[:] if palette else []
@@ -68,41 +72,30 @@ with left:
 
     theme["palette"] = st.session_state.palette_work
 
-    st.subheader("✍️ نصوص الصفحات")
-    texts["dashboard_title"] = st.text_input(
-        "عنوان صفحة الداشبورد",
-        value=texts.get("dashboard_title", "📊 داشبورد المشاريع")
-    )
-    texts["upload_title"] = st.text_input(
-        "عنوان صفحة رفع البيانات",
-        value=texts.get("upload_title", "📤 رفع البيانات الأسبوعي")
-    )
+    st.divider()
 
-# =========================
-# العمود الأيمن: اللوقو + إعداداته
-# =========================
+    st.subheader("✍️ عناوين الصفحات (قابلة للتعديل)")
+    texts["dashboard_title_ar"] = st.text_input("عنوان الداشبورد (عربي)", value=texts.get("dashboard_title_ar", "📊 داشبورد المشاريع"))
+    texts["dashboard_title_en"] = st.text_input("Dashboard title (English)", value=texts.get("dashboard_title_en", "📊 Projects Dashboard"))
+    texts["upload_title_ar"] = st.text_input("عنوان رفع البيانات (عربي)", value=texts.get("upload_title_ar", "📤 رفع البيانات الأسبوعي"))
+    texts["upload_title_en"] = st.text_input("Upload title (English)", value=texts.get("upload_title_en", "📤 Weekly Data Upload"))
+
 with right:
-    st.subheader("🖼️ رفع اللوقو (محفوظ)")
-    st.caption("ارفعي لوقو هنا وسيُحفظ في data/logo.png ويظهر في كل الصفحات.")
+    st.subheader("🖼️ اللوقو (حفظ + إعدادات)")
 
-    logo_upload = st.file_uploader(
-        "ارفع لوقو جديد (PNG / JPG)",
-        type=["png", "jpg", "jpeg"]
-    )
-
+    logo_upload = st.file_uploader("ارفع لوقو جديد (PNG / JPG)", type=["png", "jpg", "jpeg"])
     if logo_upload is not None:
         Path("data").mkdir(parents=True, exist_ok=True)
         save_path = Path(logo.get("file_path", "data/logo.png"))
         with open(save_path, "wb") as f:
             f.write(logo_upload.getbuffer())
-        st.success("✅ تم حفظ اللوقو بنجاح")
-        st.image(str(save_path), width=200)
+        st.success("✅ تم حفظ اللوقو")
+        st.image(str(save_path), width=220)
 
-    # معاينة اللوقو الحالي إن وجد
     current_path = Path(logo.get("file_path", "data/logo.png"))
     if current_path.exists():
-        st.markdown("**اللوقو الحالي:**")
-        st.image(str(current_path), width=200)
+        st.caption("اللوقو الحالي:")
+        st.image(str(current_path), width=220)
         if st.button("🗑️ حذف اللوقو المحفوظ"):
             current_path.unlink()
             st.success("تم حذف اللوقو.")
@@ -114,26 +107,18 @@ with right:
 
     st.subheader("إعدادات اللوقو")
     logo["enabled"] = st.toggle("إظهار اللوقو", value=bool(logo.get("enabled", True)))
-    logo["location"] = st.selectbox(
-        "مكان اللوقو",
-        ["header", "sidebar"],
-        index=0 if logo.get("location", "header") == "header" else 1
-    )
-    logo["align"] = st.selectbox(
-        "محاذاة اللوقو",
-        ["left", "center", "right"],
-        index=["left", "center", "right"].index(logo.get("align", "left"))
-    )
+    logo["location"] = st.selectbox("مكان اللوقو", ["header", "sidebar"], index=0 if logo.get("location", "header") == "header" else 1)
+    logo["align"] = st.selectbox("محاذاة اللوقو", ["left", "center", "right"], index=["left","center","right"].index(logo.get("align", "left")))
     logo["width"] = st.slider("عرض اللوقو (px)", 60, 360, int(logo.get("width", 160)))
     logo["top_margin"] = st.slider("مسافة فوق اللوقو", 0, 40, int(logo.get("top_margin", 6)))
     logo["bottom_margin"] = st.slider("مسافة تحت اللوقو", 0, 40, int(logo.get("bottom_margin", 10)))
 
     st.divider()
 
-    col_save, col_reset = st.columns([1, 1])
-
-    with col_save:
+    c1, c2 = st.columns([1, 1])
+    with c1:
         if st.button("💾 حفظ الإعدادات"):
+            settings["lang"] = lang
             settings["theme"] = theme
             settings["logo"] = logo
             settings["texts"] = texts
@@ -141,9 +126,8 @@ with right:
             st.success("تم حفظ الإعدادات ✅")
             st.rerun()
 
-    with col_reset:
+    with c2:
         if st.button("↩️ استرجاع الافتراضي"):
-            from utils.settings import DEFAULT_SETTINGS
             save_settings(DEFAULT_SETTINGS)
             st.session_state.pop("palette_work", None)
             st.success("تمت إعادة الإعدادات الافتراضية ✅")
