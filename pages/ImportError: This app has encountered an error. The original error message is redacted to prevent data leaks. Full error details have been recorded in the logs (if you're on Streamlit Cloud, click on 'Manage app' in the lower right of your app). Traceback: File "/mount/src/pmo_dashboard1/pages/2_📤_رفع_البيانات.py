@@ -5,29 +5,25 @@ import streamlit as st
 from utils.layout import sidebar_menu, page_title
 from utils.auth import require_login, logout_button
 
-st.set_page_config(
-    page_title="رفع البيانات",
-    page_icon="📤",
-    layout="wide"
-)
+st.set_page_config(page_title="رفع البيانات", page_icon="📤", layout="wide")
 
 sidebar_menu(active="upload")
 page_title("📤 رفع البيانات")
 
-# 🔒 حماية الصفحة
+# 🔒 حماية الصفحة: لو ما فيه دخول، يظهر نموذج الدخول داخل نفس الصفحة
 require_login()
 
-st.success("أنتِ مسجلة دخول ويمكنك رفع البيانات ✅")
+# ✅ بعد تسجيل الدخول يظهر رفع الإكسل مباشرة (مثل أول)
+st.success("تم تسجيل الدخول ✅ يمكنك رفع ملف Excel الآن")
 logout_button()
 
-st.write("ارفعي ملف Excel وسيتم تحديث الداشبورد تلقائيًا.")
-
-uploaded = st.file_uploader("رفع ملف Excel", type=["xlsx"])
+uploaded = st.file_uploader("ارفع ملف Excel (xlsx)", type=["xlsx"])
 
 if uploaded:
     Path("data").mkdir(exist_ok=True)
-    with open("data/latest.xlsx", "wb") as f:
+    save_path = os.path.join("data", "latest.xlsx")
+    with open(save_path, "wb") as f:
         f.write(uploaded.getbuffer())
 
-    st.success("✅ تم رفع الملف بنجاح")
-    st.info("انتقلي إلى 🏠 الصفحة الرئيسية لمشاهدة الداشبورد المحدّث")
+    st.success("✅ تم رفع الملف وتحديثه بنجاح")
+    st.info("اذهبي إلى 🏠 الصفحة الرئيسية لمشاهدة الداشبورد بعد التحديث")
