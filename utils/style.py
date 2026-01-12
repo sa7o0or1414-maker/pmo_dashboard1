@@ -1,62 +1,60 @@
 import streamlit as st
 
-def apply_theme(
-    primary: str,
-    bg: str,
-    card_bg: str,
-    text: str,
-    logo_width: int = 160,
-    radius: int = 16,
-):
-    # CSS عام
+def apply_theme(theme: dict, logo: dict):
+    primary = theme["primary"]
+    bg = theme["bg"]
+    card = theme["card_bg"]
+    text = theme["text"]
+    radius = int(theme.get("radius", 18))
+
+    # نحول الباليت لأكواد CSS (مفيدة للرسوم/بادجات لاحقًا)
+    palette = theme.get("palette", [])
+    palette_css = ",".join(palette) if palette else primary
+
+    align = logo.get("align", "left")
+    justify = {"left": "flex-start", "center": "center", "right": "flex-end"}.get(align, "flex-start")
+
+    top_margin = int(logo.get("top_margin", 6))
+    bottom_margin = int(logo.get("bottom_margin", 10))
+
     css = f"""
     <style>
       :root {{
         --primary: {primary};
         --bg: {bg};
-        --card: {card_bg};
+        --card: {card};
         --text: {text};
         --radius: {radius}px;
+        --palette: {palette_css};
       }}
 
-      /* خلفية التطبيق */
       .stApp {{
         background: var(--bg);
         color: var(--text);
       }}
 
-      /* كروت/حاويات */
-      div[data-testid="stMetric"], 
-      div[data-testid="stDataFrame"],
-      section[data-testid="stSidebar"] > div {{
-        border-radius: var(--radius) !important;
-      }}
-
-      /* لون الأزرار */
+      /* زر */
       .stButton > button {{
         background: var(--primary) !important;
         border: 1px solid var(--primary) !important;
-        color: white !important;
+        color: #fff !important;
         border-radius: var(--radius) !important;
         padding: 0.6rem 1rem !important;
       }}
 
-      /* مدخلات و سلايدرز */
-      input, textarea, .stSelectbox, .stMultiSelect {{
+      /* بطاقات/حاويات */
+      div[data-testid="stMetric"] {{
+        background: var(--card) !important;
         border-radius: var(--radius) !important;
+        padding: 14px !important;
       }}
 
-      /* عنوان السايدبار */
-      section[data-testid="stSidebar"] h2, 
-      section[data-testid="stSidebar"] h3 {{
-        color: var(--text) !important;
-      }}
-
-      /* ستايل بسيط للّوقو */
-      .pmo-logo img {{
-        width: {logo_width}px !important;
-        height: auto !important;
-        border-radius: 12px;
+      /* صندوق اللوقو */
+      .pmo-logo-wrap {{
+        display: flex;
+        justify-content: {justify};
+        margin-top: {top_margin}px;
+        margin-bottom: {bottom_margin}px;
       }}
     </style>
     """
