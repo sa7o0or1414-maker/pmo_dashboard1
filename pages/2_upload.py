@@ -4,12 +4,14 @@ from pathlib import Path
 st.set_page_config(page_title="رفع البيانات", page_icon="📤", layout="wide")
 st.title("📤 رفع البيانات")
 
+# حماية
 if not st.session_state.get("logged_in", False):
     st.warning("هذه الصفحة للمسؤول فقط")
     pwd = st.text_input("كلمة المرور", type="password")
     if st.button("تسجيل الدخول"):
         if pwd == "admin123":
             st.session_state.logged_in = True
+            st.success("تم تسجيل الدخول ✅")
             st.rerun()
         else:
             st.error("كلمة المرور غير صحيحة")
@@ -20,4 +22,4 @@ if uploaded:
     Path("data").mkdir(exist_ok=True)
     with open("data/latest.xlsx", "wb") as f:
         f.write(uploaded.getbuffer())
-    st.success("تم رفع الملف بنجاح")
+    st.success("✅ تم رفع الملف بنجاح")
