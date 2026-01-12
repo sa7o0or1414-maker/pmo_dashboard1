@@ -5,7 +5,6 @@ st.set_page_config(page_title="رفع البيانات", page_icon="📤", layou
 
 st.title("📤 رفع البيانات")
 
-# حماية
 if not st.session_state.get("logged_in", False):
     st.warning("هذه الصفحة للمسؤول فقط")
     pwd = st.text_input("كلمة المرور", type="password")
@@ -16,8 +15,6 @@ if not st.session_state.get("logged_in", False):
         else:
             st.error("كلمة المرور غير صحيحة")
     st.stop()
-
-st.success("مسجل دخول ✅")
 
 uploaded = st.file_uploader("ارفع ملف Excel", type=["xlsx"])
 
