@@ -12,14 +12,15 @@ DEFAULT_SETTINGS = {
         "radius": 18,
         "palette": ["#3B82F6", "#22C55E", "#F59E0B", "#EF4444", "#A855F7"]
     },
-    "logo": {
-        "enabled": True,
-        "location": "header",      # header | sidebar
-        "align": "left",           # left | center | right
-        "width": 160,
-        "top_margin": 6,
-        "bottom_margin": 10
-    }
+  "logo": {
+    "enabled": True,
+    "location": "header",
+    "align": "left",
+    "width": 160,
+    "top_margin": 6,
+    "bottom_margin": 10,
+    "file_path": "data/logo.png"
+}
 }
 
 def load_settings() -> dict:
