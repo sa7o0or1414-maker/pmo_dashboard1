@@ -69,7 +69,14 @@ if logo_upload is not None:
 
     st.success("✅ تم حفظ اللوقو بنجاح!")
     st.image(str(save_path), width=200)
-
+if st.button("🗑️ حذف اللوقو المحفوظ"):
+    p = Path(logo.get("file_path", "data/logo.png"))
+    if p.exists():
+        p.unlink()
+        st.success("تم حذف اللوقو.")
+        st.rerun()
+    else:
+        st.info("لا يوجد لوقو محفوظ.")
 with right:
     st.subheader("إعدادات اللوقو")
     logo["enabled"] = st.toggle("إظهار اللوقو", value=bool(logo.get("enabled", True)))
