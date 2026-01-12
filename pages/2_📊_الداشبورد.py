@@ -79,7 +79,6 @@ def ensure_latlon(frame: pd.DataFrame) -> pd.DataFrame:
     return out
 
 # ---------- Sidebar Filters ----------
-st.sidebar.header("🎛️ الفلاتر")
 
 status_opt = ["الكل"] + safe_unique(df, "حالة المشروع")
 mun_opt = ["الكل"] + safe_unique(df, "البلدية")
