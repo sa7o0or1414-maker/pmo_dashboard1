@@ -6,108 +6,17 @@ import pandas as pd
 import streamlit as st
 import plotly.express as px
 
-from utils.layout import render_header
+from utils.layout import render_sidebar_menu, render_header
 from utils.settings import load_settings
 
 # --------------------------------------------------
-# إعدادات الصفحة الرئيسية (Dashboard)
+# الصفحة الرئيسية (Dashboard)
 # --------------------------------------------------
 st.set_page_config(page_title="الصفحة الرئيسية", page_icon="🏠", layout="wide")
 
-# ✅ نخفي قائمة الصفحات الافتراضية (اللي يطلع فيها App)
-st.markdown(
-    """
-    <style>
-      div[data-testid="stSidebarNav"] { display: none !important; }
-    </style>
-    """,
-    unsafe_allow_html=True,
-)
-
-# --------------------------------------------------
-# اكتشاف صفحات مجلد pages تلقائيًا (بدون ما نعرف اسم الملف)
-# --------------------------------------------------
-def list_pages():
-    pages_dir = "pages"
-    if not os.path.isdir(pages_dir):
-        return []
-    files = []
-    for f in os.listdir(pages_dir):
-        if f.endswith(".py") and not f.startswith("_"):
-            files.append(f)
-    return sorted(files)
-
-def find_page_by_keywords(keywords):
-    """
-    يبحث داخل أسماء ملفات pages عن أي ملف يحتوي كل الكلمات المطلوبة.
-    """
-    pages = list_pages()
-    for f in pages:
-        name = f.lower()
-        ok = True
-        for kw in keywords:
-            if kw.lower() not in name:
-                ok = False
-                break
-        if ok:
-            return f"pages/{f}"
-    return None
-
-# نحاول نلقط الصفحات (رفع/إعدادات/تسجيل) مهما كان رقمها أو الإيموجي
-upload_page = find_page_by_keywords(["رفع"]) or find_page_by_keywords(["upload"])
-settings_page = find_page_by_keywords(["الإعدادات"]) or find_page_by_keywords(["اعدادات"]) or find_page_by_keywords(["settings"])
-login_page = find_page_by_keywords(["تسجيل"]) or find_page_by_keywords(["login"])
-
-# --------------------------------------------------
-# سايدبار مخصص بالترتيب المطلوب
-# --------------------------------------------------
-st.sidebar.markdown(
-    """
-    <div style="text-align:center; font-size:20px; font-weight:800; margin-top:8px;">
-        🏠 الصفحة الرئيسية
-    </div>
-    <div style="text-align:center; font-size:14px; opacity:0.9; margin-bottom:14px;">
-        لوحة المعلومات
-    </div>
-    <hr style="margin: 10px 0 14px 0; opacity:0.3;">
-    """,
-    unsafe_allow_html=True,
-)
-
-# أزرار تنقلك للصفحات (ترتيبك: رفع -> إعدادات -> تسجيل)
-if st.sidebar.button("📤 رفع البيانات", use_container_width=True):
-    if upload_page:
-        st.switch_page(upload_page)
-    else:
-        st.sidebar.error("لم أجد صفحة (رفع البيانات) داخل مجلد pages.")
-
-if st.sidebar.button("🎨 الإعدادات", use_container_width=True):
-    if settings_page:
-        st.switch_page(settings_page)
-    else:
-        st.sidebar.error("لم أجد صفحة (الإعدادات) داخل مجلد pages.")
-
-if st.sidebar.button("🔐 تسجيل الدخول", use_container_width=True):
-    if login_page:
-        st.switch_page(login_page)
-    else:
-        st.sidebar.error("لم أجد صفحة (تسجيل الدخول) داخل مجلد pages.")
-
-st.sidebar.markdown("<hr style='margin:14px 0; opacity:0.3;'>", unsafe_allow_html=True)
-
-# (اختياري) لو حبيتي تشوفي أسماء ملفات pages المتوفرة أثناء التجربة:
-with st.sidebar.expander("🧩 صفحات موجودة (للتأكد)", expanded=False):
-    pages_now = list_pages()
-    if pages_now:
-        for p in pages_now:
-            st.write("•", p)
-    else:
-        st.info("لا يوجد مجلد pages أو لا توجد صفحات.")
-
-# --------------------------------------------------
-# هيدر أعلى الصفحة (لوغو + عنوان + لغة حسب نظامك)
-# --------------------------------------------------
-render_header(title_key_base="dashboard_title", page_title_fallback="📊 لوحة المعلومات")
+# ✅ بار يمين ثابت (ويخفي App في كل الصفحات)
+render_sidebar_menu(active="home")
+render_header(page_title_fallback="📊 لوحة المعلومات")
 
 # --------------------------------------------------
 # الإعدادات
@@ -217,7 +126,7 @@ def show_dropdown(table_df: pd.DataFrame, title: str):
         st.dataframe(table_df[cols_show], use_container_width=True)
 
 # --------------------------------------------------
-# فلاتر (تحت القائمة)
+# فلاتر
 # --------------------------------------------------
 st.sidebar.markdown("### 🔎 تحديد النتائج")
 status_opt = ["الكل"] + safe_unique(df, "حالة المشروع")
@@ -248,7 +157,7 @@ k4.metric("متوسط الإنجاز", f"{pd.to_numeric(filtered['نسبة ال�
 st.divider()
 
 # --------------------------------------------------
-# Alerts + Forecast + Reasons
+# Alerts + Forecast
 # --------------------------------------------------
 alerts = filtered.copy()
 today = pd.Timestamp(date.today())
@@ -286,7 +195,8 @@ if can_forecast:
 
     valid2 = alerts["predicted_total_days"].notna()
     alerts.loc[valid2, "forecast_end"] = (
-        alerts.loc[valid2, "تاريخ تسليم الموقع"] + pd.to_timedelta(alerts.loc[valid2, "predicted_total_days"], unit="D", errors="coerce")
+        alerts.loc[valid2, "تاريخ تسليم الموقع"]
+        + pd.to_timedelta(alerts.loc[valid2, "predicted_total_days"], unit="D", errors="coerce")
     )
 
 alerts["is_overdue"] = False
@@ -344,22 +254,20 @@ def build_reason(row):
 
 alerts["reason"] = alerts.apply(build_reason, axis=1)
 
-# Toggle (ضغطة تظهر/ضغطة تختفي)
 if "alerts_toggle" not in st.session_state:
-    st.session_state.alerts_toggle = None  # None | overdue | forecast
+    st.session_state.alerts_toggle = None
 
 overdue_count = int(alerts["is_overdue"].sum())
 forecast_count = int(alerts["is_forecast_late"].sum())
 
-col_over, col_fore = st.columns(2)
-
-with col_over:
+c_over, c_fore = st.columns(2)
+with c_over:
     if st.button(f"⛔ متأخر فعليًا • {overdue_count:,}", use_container_width=True):
         st.session_state.alerts_toggle = None if st.session_state.alerts_toggle == "overdue" else "overdue"
     if st.session_state.alerts_toggle == "overdue":
         show_dropdown(alerts[alerts["is_overdue"]].copy(), "📌 تفاصيل المتأخرة فعليًا")
 
-with col_fore:
+with c_fore:
     if st.button(f"⚠️ متوقع يتأخر (Forecast) • {forecast_count:,}", use_container_width=True):
         st.session_state.alerts_toggle = None if st.session_state.alerts_toggle == "forecast" else "forecast"
     if st.session_state.alerts_toggle == "forecast":
@@ -392,7 +300,7 @@ else:
 
 st.divider()
 
-# Map (اختياري)
+# Map
 if show_map:
     st.subheader("🗺️ الخريطة (تتغير حسب الفلاتر)")
     geo = ensure_latlon(filtered).dropna(subset=[lat_col, lon_col]).copy()
@@ -402,7 +310,5 @@ if show_map:
         st.map(pd.DataFrame({"lat": geo[lat_col].astype(float), "lon": geo[lon_col].astype(float)}), zoom=10)
 
 st.divider()
-
-# جدول
 st.subheader("📋 جدول المشاريع (بعد الفلترة)")
 st.dataframe(filtered, use_container_width=True)
