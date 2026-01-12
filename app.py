@@ -11,9 +11,11 @@ from utils.settings import load_settings
 
 # ---------- Page config ----------
 st.set_page_config(page_title="PMO Dashboard", layout="wide")
+st.sidebar.title("📊 لوحة المعلومات")
 render_header(title_key_base="dashboard_title", page_title_fallback="📊 داشبورد المشاريع")
 
 # ---------- Settings ----------
+
 settings = load_settings()
 theme = settings.get("theme", {})
 palette = theme.get("palette", ["#3B82F6", "#22C55E", "#F59E0B", "#EF4444", "#A855F7"])
