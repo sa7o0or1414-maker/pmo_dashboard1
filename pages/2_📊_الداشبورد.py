@@ -2,11 +2,8 @@ import os
 import pandas as pd
 import streamlit as st
 import plotly.express as px
-
 from utils.layout import render_header
-
-st.set_page_config(page_title="الداشبورد", layout="wide")
-render_header("📊 داشبورد المشاريع")
+render_header(title_key_base="dashboard_title", page_title_fallback="📊 داشبورد المشاريع")
 
 path = os.path.join("data", "latest.xlsx")
 if not os.path.exists(path):
