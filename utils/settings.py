@@ -24,10 +24,11 @@ DEFAULT_SETTINGS = {
         "bottom_margin": 10,
         "file_path": "data/logo.png"
     },
-    "layout": {
-        "title_align": "right",      # left | center | right (applies to page titles)
-        "title_size_px": 22
-    },
+ "layout": {
+  "title_align": "right",
+  "title_size_px": 22,
+  "cards_gap_px": 38
+},
     "data": {
         # أسماء الأعمدة المتوقعة للخريطة
         "lat_col": "lat",
