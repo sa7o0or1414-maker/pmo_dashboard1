@@ -9,11 +9,11 @@ import plotly.express as px
 from utils.layout import render_header
 from utils.settings import load_settings
 
-# لازم أول شيء
+# ---------- Page config ----------
 st.set_page_config(page_title="الداشبورد", layout="wide")
 render_header(title_key_base="dashboard_title", page_title_fallback="📊 داشبورد المشاريع")
 
-# ---------- Load settings ----------
+# ---------- Settings ----------
 settings = load_settings()
 theme = settings.get("theme", {})
 palette = theme.get("palette", ["#3B82F6", "#22C55E", "#F59E0B", "#EF4444", "#A855F7"])
@@ -78,8 +78,7 @@ def ensure_latlon(frame: pd.DataFrame) -> pd.DataFrame:
     out[lon_col] = pd.NA
     return out
 
-# ---------- Sidebar Filters ----------
-
+# ---------- Sidebar filters (بدون عنوان "الفلاتر") ----------
 status_opt = ["الكل"] + safe_unique(df, "حالة المشروع")
 mun_opt = ["الكل"] + safe_unique(df, "البلدية")
 entity_opt = ["الكل"] + safe_unique(df, "الجهة")
@@ -111,7 +110,7 @@ else:
     k3.metric("إجمالي المستخلصات", "—")
 
 if "نسبة الإنجاز" in filtered.columns:
-    k4.metric("متوسط الإنجاز", f"{filtered['نسبة الإنجاز'].fillna(0).mean():.1f}%")
+    k4.metric("متوسط الإنجاز", f"{pd.to_numeric(filtered['نسبة الإنجاز'], errors='coerce').fillna(0).mean():.1f}%")
 else:
     k4.metric("متوسط الإنجاز", "—")
 
@@ -138,8 +137,8 @@ if "نسبة الإنجاز" in alerts.columns:
 alerts["predicted_total_days"] = pd.Series([None] * len(alerts), dtype="float64")
 alerts["forecast_end"] = pd.NaT
 
-MAX_PREDICT_DAYS = 20000  # حد أمان ضد OutOfBoundsTimedelta
-MIN_PROGRESS = 0.5        # أقل إنجاز نسمح به للتنبؤ (0.5%)
+MAX_PREDICT_DAYS = 20000  # حد أمان
+MIN_PROGRESS = 0.5        # أقل إنجاز للتنبؤ
 MAX_PROGRESS = 100
 
 can_forecast = (
@@ -188,22 +187,35 @@ if "تاريخ الانتهاء من المشروع" in alerts.columns:
         (alerts["forecast_end"] > alerts["تاريخ الانتهاء من المشروع"])
     )
 
-# Alerts KPIs
-a1, a2, a3, a4 = st.columns(4)
-a1.metric("متأخر فعليًا", f"{int(alerts['is_overdue'].sum()):,}")
-a2.metric("متوقع يتأخر (Forecast)", f"{int(alerts['is_forecast_late'].sum()):,}")
+# ---------- Clickable Cards (show projects by click) ----------
+if "alerts_view" not in st.session_state:
+    st.session_state.alerts_view = "all"  # all | overdue | forecast
 
-if "TROUBLED3 PRO" in alerts.columns:
-    a3.metric("TROUBLED3 PRO", f"{alerts['TROUBLED3 PRO'].fillna(0).sum():,.0f}")
-else:
-    a3.metric("تنبيهات", "—")
+overdue_count = int(alerts["is_overdue"].sum())
+forecast_count = int(alerts["is_forecast_late"].sum())
 
-if "حالة المشروع" in alerts.columns:
-    a4.metric("عدد الحالات", f"{alerts['حالة المشروع'].nunique():,}")
-else:
-    a4.metric("عدد الحالات", "—")
+b1, b2, b3, b4 = st.columns([3, 3, 2, 2])
 
-# Alerts charts
+with b1:
+    if st.button(f"⛔ متأخر فعليًا • {overdue_count:,}", use_container_width=True, key="btn_overdue"):
+        st.session_state.alerts_view = "overdue"
+
+with b2:
+    if st.button(f"⚠️ متوقع يتأخر (Forecast) • {forecast_count:,}", use_container_width=True, key="btn_forecast"):
+        st.session_state.alerts_view = "forecast"
+
+with b3:
+    if st.button("🔎 عرض الكل", use_container_width=True, key="btn_all"):
+        st.session_state.alerts_view = "all"
+
+with b4:
+    # كرت إضافي (اختياري): إجمالي التنبيهات
+    total_alerts = int(((alerts["is_overdue"]) | (alerts["is_forecast_late"])).sum())
+    st.metric("إجمالي التنبيهات", f"{total_alerts:,}")
+
+st.divider()
+
+# ---------- Alerts charts ----------
 l, r = st.columns(2)
 
 alerts_summary = pd.DataFrame({
@@ -214,6 +226,7 @@ alerts_summary = pd.DataFrame({
         int(max(len(alerts) - alerts["is_overdue"].sum(), 0))
     ]
 })
+
 fig_alerts = px.bar(
     alerts_summary,
     x="الحالة",
@@ -242,23 +255,54 @@ if "تاريخ الانتهاء من المشروع" in alerts.columns:
 else:
     r.info("عمود 'تاريخ الانتهاء من المشروع' غير موجود لعرض التنبؤ.")
 
-st.subheader("📌 قائمة المشاريع المتأخرة / المتوقع تأخرها")
-cols_show = [c for c in [
-    "رقم العقد",
-    "إسم المشـــروع",
-    "البلدية",
-    "الجهة",
-    "حالة المشروع",
-    "نسبة الإنجاز",
-    "تاريخ الانتهاء من المشروع",
-    "forecast_end"
-] if c in alerts.columns]
+st.divider()
 
-late_table = alerts[(alerts["is_overdue"]) | (alerts["is_forecast_late"])].copy()
-if len(late_table) == 0:
-    st.info("لا توجد مشاريع متأخرة أو متوقع تأخرها حسب القواعد الحالية.")
+# ---------- Projects list based on clicked card ----------
+st.subheader("📌 المشاريع حسب اختيار الكرت")
+
+view = st.session_state.alerts_view
+
+if view == "overdue":
+    table_df = alerts[alerts["is_overdue"]].copy()
+    st.caption("عرض: المشاريع المتأخرة فعليًا")
+elif view == "forecast":
+    table_df = alerts[alerts["is_forecast_late"]].copy()
+    st.caption("عرض: المشاريع المتوقع تأخرها (Forecast)")
 else:
-    st.dataframe(late_table[cols_show], use_container_width=True)
+    table_df = alerts[(alerts["is_overdue"]) | (alerts["is_forecast_late"])].copy()
+    st.caption("عرض: كل المتأخرة + المتوقع تأخرها")
+
+name_col = "إسم المشـــروع" if "إسم المشـــروع" in table_df.columns else None
+if len(table_df) == 0:
+    st.info("لا توجد نتائج حسب الاختيار الحالي.")
+else:
+    # أسماء المشاريع (قائمة)
+    if name_col:
+        with st.expander("📝 أسماء المشاريع", expanded=True):
+            names = table_df[name_col].dropna().astype(str).unique().tolist()
+            for n in names:
+                st.write("•", n)
+    else:
+        st.info("عمود اسم المشروع غير موجود لعرض الأسماء.")
+
+    # جدول التفاصيل
+    cols_show = [c for c in [
+        "رقم العقد",
+        "إسم المشـــروع",
+        "البلدية",
+        "الجهة",
+        "حالة المشروع",
+        "نسبة الإنجاز",
+        "تاريخ الانتهاء من المشروع",
+        "forecast_end"
+    ] if c in table_df.columns]
+
+    # ترتيب: المتأخر أولاً
+    sort_cols = [c for c in ["is_overdue", "is_forecast_late"] if c in table_df.columns]
+    if sort_cols:
+        table_df = table_df.sort_values(by=sort_cols, ascending=False)
+
+    st.dataframe(table_df[cols_show], use_container_width=True)
 
 st.divider()
 
@@ -271,7 +315,6 @@ geo = geo.dropna(subset=[lat_col, lon_col]).copy()
 if len(geo) == 0:
     st.info("لا توجد إحداثيات. أضيفي في Excel أعمدة lat/lon أو رابط Google Maps في عمود رابط الموقع.")
 else:
-    # Streamlit map automatically centers based on points
     map_df = pd.DataFrame({
         "lat": geo[lat_col].astype(float),
         "lon": geo[lon_col].astype(float),
