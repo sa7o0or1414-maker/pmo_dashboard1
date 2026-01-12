@@ -1,4 +1,11 @@
+import os
+import pandas as pd
+import streamlit as st
+import plotly.express as px
+
 from utils.layout import render_header
+
+st.set_page_config(page_title="الداشبورد", layout="wide")
 render_header("📊 داشبورد المشاريع")
 pmo_dashboard/
   app.py
