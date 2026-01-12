@@ -1,39 +1,40 @@
 import streamlit as st
 
-# ✅ غيّري كلمة المرور هنا (لاحقًا نخليها في Secrets)
-ADMIN_PASSWORD = "admin123"
-
-
-def is_logged_in() -> bool:
-    return bool(st.session_state.get("logged_in", False))
-
-
-def login_form():
-    st.subheader("🔐 تسجيل الدخول للمسؤول")
-
-    password = st.text_input("كلمة المرور", type="password")
-
-    if st.button("تسجيل الدخول", use_container_width=True):
-        if password == ADMIN_PASSWORD:
-            st.session_state["logged_in"] = True
-            st.success("✅ تم تسجيل الدخول بنجاح")
-            st.rerun()
-        else:
-            st.error("❌ كلمة المرور غير صحيحة")
-
-
-def logout_button():
-    if st.button("تسجيل الخروج", use_container_width=True):
-        st.session_state["logged_in"] = False
-        st.rerun()
-
-
-def require_login():
+def sidebar_menu(active: str):
     """
-    استدعِ هذه الدالة داخل الصفحات المحمية (مثل رفع البيانات).
-    إذا ما كان المستخدم مسجل دخول، تظهر له فورًا صفحة تسجيل الدخول داخل نفس الصفحة.
+    active = home | upload | settings | login
     """
-    if not is_logged_in():
-        st.warning("هذه الصفحة للمسؤول فقط. الرجاء تسجيل الدخول للمتابعة.")
-        login_form()
-        st.stop()
+
+    # إخفاء App الافتراضي
+    st.markdown("""
+    <style>
+    div[data-testid="stSidebarNav"] { display: none !important; }
+    .brand-title { text-align:center; font-size:20px; font-weight:800; margin:8px 0 4px 0; }
+    .brand-sub { text-align:center; font-size:14px; opacity:0.85; margin-bottom:12px; }
+    .brand-hr { border:0; border-top:1px solid rgba(255,255,255,0.25); margin:12px 0; }
+    </style>
+    """, unsafe_allow_html=True)
+
+    st.sidebar.markdown("""
+    <div class="brand-title">🏠 الصفحة الرئيسية</div>
+    <div class="brand-sub">📊 لوحة المعلومات</div>
+    <hr class="brand-hr"/>
+    """, unsafe_allow_html=True)
+
+    def go(label, path, is_active):
+        if st.sidebar.button(label, use_container_width=True, disabled=is_active):
+            st.switch_page(path)
+
+    # ✅ الصفحة الرئيسية = الداشبورد
+    go("🏠 الصفحة الرئيسية", "pages/1_🏠_الصفحة_الرئيسية.py", active == "home")
+
+    # باقي الصفحات
+    go("📤 رفع البيانات", "pages/2_📤_رفع_البيانات.py", active == "upload")
+    go("🎨 الإعدادات", "pages/3_🎨_الإعدادات.py", active == "settings")
+    go("🔐 تسجيل الدخول", "pages/4_🔐_تسجيل_الدخول.py", active == "login")
+
+    st.sidebar.markdown("<hr class='brand-hr'/>", unsafe_allow_html=True)
+
+
+def page_title(title: str):
+    st.markdown(f"## {title}")
